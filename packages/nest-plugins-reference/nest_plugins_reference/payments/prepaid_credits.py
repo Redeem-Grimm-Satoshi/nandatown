@@ -94,6 +94,11 @@ class PrepaidCredits:
             msg = f"Payment not found: {ref}"
             raise ValueError(msg)
 
-        self._balances[receipt.payee] = self._balances.get(receipt.payee, 0) - receipt.amount.amount
+        payee_balance = self._balances.get(receipt.payee, 0)
+        if payee_balance < receipt.amount.amount:
+            msg = f"Insufficient balance for refund: {receipt.payee} has {payee_balance}, needs {receipt.amount.amount}"
+            raise ValueError(msg)
+
+        self._balances[receipt.payee] = payee_balance - receipt.amount.amount
         self._balances[receipt.payer] = self._balances.get(receipt.payer, 0) + receipt.amount.amount
         del self._payments[ref]

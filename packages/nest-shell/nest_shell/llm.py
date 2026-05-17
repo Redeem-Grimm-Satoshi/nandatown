@@ -56,13 +56,17 @@ class OpenAIBackend:
         self._temperature = temperature
         self._max_tokens = max_tokens
         self._api_key = api_key  # None = use env var
+        self._client: object | None = None
+
+    def _get_client(self) -> object:
+        if self._client is None:
+            import openai  # pyright: ignore[reportMissingModuleSource]
+
+            self._client = openai.AsyncOpenAI(api_key=self._api_key)  # pyright: ignore[reportUnknownMemberType]
+        return self._client
 
     async def complete(self, messages: list[dict[str, str]]) -> str:
-        import openai  # pyright: ignore[reportMissingModuleSource]
-
-        client = openai.AsyncOpenAI(  # pyright: ignore[reportUnknownMemberType]
-            api_key=self._api_key,
-        )
+        client: object = self._get_client()
         response = await client.chat.completions.create(  # pyright: ignore[reportUnknownMemberType]
             model=self._model,
             messages=messages,  # pyright: ignore[reportArgumentType]
@@ -95,13 +99,17 @@ class AnthropicBackend:
         self._temperature = temperature
         self._max_tokens = max_tokens
         self._api_key = api_key
+        self._client: object | None = None
+
+    def _get_client(self) -> object:
+        if self._client is None:
+            import anthropic  # pyright: ignore[reportMissingImports]
+
+            self._client = anthropic.AsyncAnthropic(api_key=self._api_key)  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+        return self._client
 
     async def complete(self, messages: list[dict[str, str]]) -> str:
-        import anthropic  # pyright: ignore[reportMissingImports]
-
-        client = anthropic.AsyncAnthropic(  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
-            api_key=self._api_key,
-        )
+        client: object = self._get_client()
         # Extract system message; Anthropic requires it as a separate parameter.
         system = ""
         chat_messages: list[dict[str, str]] = []

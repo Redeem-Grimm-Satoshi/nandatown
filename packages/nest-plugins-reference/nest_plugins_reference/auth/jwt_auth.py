@@ -85,6 +85,9 @@ class JwtAuth:
             raise ValueError(msg)
 
         data = json.loads(payload_str)
+        if data["exp"] < self._now():
+            msg = "Token has expired"
+            raise ValueError(msg)
         return AuthContext(
             subject=AgentId(data["sub"]),
             scopes=data["scopes"],
