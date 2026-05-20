@@ -3,7 +3,7 @@
 ## Installation
 
 ```bash
-pip install nest-cli
+pip install "nest-core[plugins]"
 ```
 
 ## Your first run
