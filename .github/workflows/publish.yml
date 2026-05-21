@@ -2,12 +2,12 @@
 name: Publish to PyPI
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 
 permissions:
   contents: read
-  id-token: write  # OIDC for trusted publishing
 
 jobs:
   # Phase 1: Build and publish core (no NEST deps)
@@ -28,7 +28,9 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
           skip-existing: true
+          attestations: false
 
   # Phase 2: Build and publish SDK (depends on core)
   publish-sdk:
@@ -49,7 +51,9 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
           skip-existing: true
+          attestations: false
 
   # Phase 3: Build and publish plugins-reference (depends on core + sdk)
   publish-plugins-reference:
@@ -70,7 +74,9 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
           skip-existing: true
+          attestations: false
 
   # Phase 4: Build and publish leaf packages (parallel, depend on sdk)
   publish-cli:
@@ -91,7 +97,9 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
           skip-existing: true
+          attestations: false
 
   publish-shell:
     needs: publish-sdk
@@ -111,7 +119,9 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
           skip-existing: true
+          attestations: false
 
   publish-scenarios:
     needs: publish-core
@@ -131,7 +141,9 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
           skip-existing: true
+          attestations: false
 
   publish-mocks:
     needs: publish-core
@@ -151,4 +163,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
           skip-existing: true
+          attestations: false
