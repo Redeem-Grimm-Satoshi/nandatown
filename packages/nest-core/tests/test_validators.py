@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from nest_core.validators import (
     VALIDATORS,
@@ -29,21 +30,19 @@ from nest_core.validators import (
     validate_voting_tally,
 )
 
+type Event = dict[str, Any]
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _send(agent: str, to: str, msg: str, ts: float = 1.0) -> dict:
+def _send(agent: str, to: str, msg: str, ts: float = 1.0) -> Event:
     return {"ts": ts, "agent": agent, "kind": "send", "to": to, "msg": msg}
 
 
-def _broadcast(agent: str, msg: str, ts: float = 1.0) -> dict:
+def _broadcast(agent: str, msg: str, ts: float = 1.0) -> Event:
     return {"ts": ts, "agent": agent, "kind": "broadcast", "msg": msg}
-
-
-def _recv(agent: str, frm: str, msg: str, ts: float = 1.0) -> dict:
-    return {"ts": ts, "agent": agent, "kind": "receive", "from": frm, "msg": msg}
 
 
 # ===================================================================
@@ -145,6 +144,23 @@ class TestMarketplacePriceAgreement:
         results = validate_marketplace_price_agreement(events)
         assert results[0].passed is False
         assert "99" in results[0].detail
+
+    def test_fail_signed_price_mismatch(self) -> None:
+        events = [
+            _send("buyer-0", "seller-0", "buy:product-0:50|sig:abc"),
+            _send("seller-0", "buyer-0", "sold:product-0:99|sig:def"),
+        ]
+        results = validate_marketplace_price_agreement(events)
+        assert results[0].passed is False
+        assert "99" in results[0].detail
+
+    def test_fail_sale_without_offer(self) -> None:
+        events = [
+            _send("seller-0", "buyer-0", "sold:product-0:50"),
+        ]
+        results = validate_marketplace_price_agreement(events)
+        assert results[0].passed is False
+        assert "without an offer" in results[0].detail
 
 
 # ===================================================================
@@ -337,6 +353,17 @@ class TestConsensusAgreement:
         assert results[0].passed is False
         assert "1/3" in results[0].detail
 
+    def test_fail_reported_tally_disagrees_with_votes(self) -> None:
+        events = [
+            _send("follower-0", "leader-0", "vote:1:reject"),
+            _send("follower-1", "leader-0", "vote:1:reject"),
+            _send("follower-2", "leader-0", "vote:1:reject"),
+            _send("leader-0", "follower-0", "result:1:committed:3/3"),
+        ]
+        results = validate_consensus_agreement(events)
+        assert results[0].passed is False
+        assert "reported 3/3 but actual 0/3" in results[0].detail
+
     def test_pass_aborted_no_quorum(self) -> None:
         """Aborted rounds are fine even without quorum."""
         events = [
@@ -374,6 +401,16 @@ class TestConsensusValidity:
         ]
         results = validate_consensus_validity(events)
         assert results[0].passed is True
+
+    def test_fail_conflicting_proposals_same_round(self) -> None:
+        events = [
+            _send("leader-0", "follower-0", "propose:1:42"),
+            _send("leader-0", "follower-1", "propose:1:99"),
+            _send("leader-0", "follower-0", "result:1:committed:2/2:42"),
+        ]
+        results = validate_consensus_validity(events)
+        assert results[0].passed is False
+        assert "conflicting proposals" in results[0].detail
 
 
 class TestConsensusNoConflict:
@@ -430,6 +467,17 @@ class TestSupplyChainPipeline:
         assert results[0].passed is False
         assert "product" in results[0].detail
         assert "shipment" in results[0].detail
+
+    def test_fail_unmatched_delivery(self) -> None:
+        events = [
+            _send("supplier-0", "manufacturer-0", "material:1:raw-0"),
+            _send("manufacturer-0", "distributor-0", "product:2:good-0"),
+            _send("distributor-0", "retailer-0", "shipment:3:good-0"),
+            _send("retailer-0", "supplier-0", "delivered:4:good-0"),
+        ]
+        results = validate_supply_chain_pipeline(events)
+        assert results[0].passed is False
+        assert "4/good-0" in results[0].detail
 
 
 class TestSupplyChainNoLost:

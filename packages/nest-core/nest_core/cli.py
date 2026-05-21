@@ -19,6 +19,15 @@ from typing import Any
 import typer
 from pydantic import ValidationError
 
+
+def _typer_argument(*args: Any, **kwargs: Any) -> Any:
+    return typer.Argument(*args, **kwargs)  # pyright: ignore[reportUnknownMemberType]
+
+
+def _typer_option(*args: Any, **kwargs: Any) -> Any:
+    return typer.Option(*args, **kwargs)  # pyright: ignore[reportUnknownMemberType]
+
+
 app = typer.Typer(
     name="nest",
     help="NEST — Network Environment for Swarm Testing",
@@ -60,15 +69,15 @@ def _resolve_scenario_arg(scenario: str) -> Path | None:
 
 @app.command()
 def run(
-    scenario: str = typer.Argument(
+    scenario: str = _typer_argument(
         help=(
             "Built-in scenario name (e.g. `marketplace`) or path to a YAML file. "
             "Run `nest scenarios list` to see what's bundled."
         ),
     ),
-    seed: int | None = typer.Option(None, help="Override the scenario seed."),
-    ticks: int | None = typer.Option(None, help="Override max ticks."),
-    output: str | None = typer.Option(None, "-o", "--output", help="Override trace output path."),
+    seed: int | None = _typer_option(None, help="Override the scenario seed."),
+    ticks: int | None = _typer_option(None, help="Override max ticks."),
+    output: str | None = _typer_option(None, "-o", "--output", help="Override trace output path."),
 ) -> None:
     """Run a scenario from a YAML file or a built-in scenario name."""
     from nest_core.builtin_scenarios import list_builtin
@@ -135,8 +144,8 @@ async def _run_scenario(config: Any) -> Path:
 
 @app.command()
 def init(
-    name: str = typer.Argument("my-scenario", help="Name for the new scenario."),
-    directory: str | None = typer.Option(
+    name: str = _typer_argument("my-scenario", help="Name for the new scenario."),
+    directory: str | None = _typer_option(
         None,
         "-d",
         "--dir",
@@ -300,7 +309,7 @@ def _default_for(layer: str) -> str:
 
 @app.command()
 def inspect(
-    trace: str = typer.Argument(help="Path to a JSONL trace file."),
+    trace: str = _typer_argument(help="Path to a JSONL trace file."),
 ) -> None:
     """Inspect and summarize a trace file."""
     from nest_core.inspect import analyze_trace, format_summary
@@ -316,9 +325,9 @@ def inspect(
 
 @app.command()
 def report(
-    trace: str = typer.Argument(help="Path to a JSONL trace file."),
-    output: str | None = typer.Option(None, "-o", "--output", help="Output HTML report path."),
-    metrics: str | None = typer.Option(
+    trace: str = _typer_argument(help="Path to a JSONL trace file."),
+    output: str | None = _typer_option(None, "-o", "--output", help="Output HTML report path."),
+    metrics: str | None = _typer_option(
         None,
         "-m",
         "--metrics",
@@ -347,8 +356,8 @@ def report(
 
 @app.command()
 def dashboard(
-    trace: str | None = typer.Argument(None, help="Optional trace file to load."),
-    port: int = typer.Option(8080, help="Port to serve on."),
+    trace: str | None = _typer_argument(None, help="Optional trace file to load."),
+    port: int = _typer_option(8080, help="Port to serve on."),
 ) -> None:
     """Open the interactive trace dashboard in a browser."""
     import functools
@@ -458,7 +467,7 @@ def scenarios_list() -> None:
 
 @scenarios_app.command("show")
 def scenarios_show(
-    name: str = typer.Argument(help="Built-in scenario name."),
+    name: str = _typer_argument(help="Built-in scenario name."),
 ) -> None:
     """Print the YAML for a built-in scenario to stdout."""
     from nest_core.builtin_scenarios import builtin_text, list_builtin
@@ -475,12 +484,12 @@ def scenarios_show(
 
 @scenarios_app.command("cp")
 def scenarios_cp(
-    name: str = typer.Argument(help="Built-in scenario name to copy."),
-    dest: str = typer.Argument(
+    name: str = _typer_argument(help="Built-in scenario name to copy."),
+    dest: str = _typer_argument(
         ".",
         help="Destination directory or filename. Defaults to the current directory.",
     ),
-    force: bool = typer.Option(
+    force: bool = _typer_option(
         False,
         "--force",
         "-f",
@@ -516,7 +525,7 @@ def scenarios_cp(
 
 @plugins_app.command("list")
 def plugins_list(
-    layer: str | None = typer.Argument(None, help="Filter by layer name."),
+    layer: str | None = _typer_argument(None, help="Filter by layer name."),
 ) -> None:
     """List available plugins."""
     from nest_core.plugins import PluginRegistry
@@ -541,7 +550,7 @@ def plugins_list(
 
 def _require_shell() -> None:
     try:
-        import nest_shell  # noqa: F401
+        __import__("nest_shell")
     except ImportError as e:
         typer.echo(
             'Error: nest-shell is not installed. Run: pip install "nest-core[llm]"',
@@ -569,7 +578,7 @@ def templates_list() -> None:
 
 @templates_app.command("show")
 def templates_show(
-    name: str = typer.Argument(help="Template name to display."),
+    name: str = _typer_argument(help="Template name to display."),
 ) -> None:
     """Show details of a specific agent template."""
     _require_shell()
@@ -593,15 +602,15 @@ def templates_show(
 
 @templates_app.command("create")
 def templates_create(
-    name: str = typer.Argument(help="Name for the new template."),
-    prompt: str = typer.Option(
+    name: str = _typer_argument(help="Name for the new template."),
+    prompt: str = _typer_option(
         "You are a helpful agent.",
         "--prompt",
         "-p",
         help="System prompt for the agent.",
     ),
-    provider: str = typer.Option("openai", help="LLM provider."),
-    model: str = typer.Option("gpt-4o-mini", help="Model name."),
+    provider: str = _typer_option("openai", help="LLM provider."),
+    model: str = _typer_option("gpt-4o-mini", help="Model name."),
 ) -> None:
     """Create a new agent template."""
     _require_shell()
@@ -620,8 +629,8 @@ def templates_create(
 
 @templates_app.command("duplicate")
 def templates_duplicate(
-    name: str = typer.Argument(help="Name of the template to duplicate."),
-    new_name: str = typer.Argument(help="Name for the new copy."),
+    name: str = _typer_argument(help="Name of the template to duplicate."),
+    new_name: str = _typer_argument(help="Name for the new copy."),
 ) -> None:
     """Duplicate an existing template under a new name."""
     _require_shell()

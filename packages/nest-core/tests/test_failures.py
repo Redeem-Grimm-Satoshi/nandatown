@@ -126,9 +126,10 @@ class TestNetworkPartition:
 class TestByzantineAgents:
     @pytest.mark.asyncio
     async def test_byzantine_corrupts_payload(self, tmp_path: Path) -> None:
+        trace_file = tmp_path / "t.jsonl"
         sim = Simulator(
             seed=42,
-            trace_path=tmp_path / "t.jsonl",
+            trace_path=trace_file,
             byzantine_fraction=0.5,
         )
         a = PingAgent(AgentId("b"), rounds=10)
@@ -143,6 +144,13 @@ class TestByzantineAgents:
             1 for r in all_received if not r.decode("utf-8", errors="replace").startswith("ping-")
         )
         assert corrupted > 0
+
+        receive_events = [
+            json.loads(line)
+            for line in trace_file.read_text().splitlines()
+            if line and json.loads(line).get("kind") == "receive"
+        ]
+        assert any(not ev["msg"].startswith("ping-") for ev in receive_events)
 
 
 class TestFailureViaRunner:

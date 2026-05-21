@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class RoleConfig(BaseModel):
@@ -28,6 +28,14 @@ class RoleConfig(BaseModel):
     count: int
     prompt_template: str | None = None
     config: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("count")
+    @classmethod
+    def _count_non_negative(cls, value: int) -> int:
+        if value < 0:
+            msg = "role count must be >= 0"
+            raise ValueError(msg)
+        return value
 
 
 class AgentConfig(BaseModel):
@@ -44,6 +52,14 @@ class AgentConfig(BaseModel):
     llm_provider: str = "openai"  # "openai", "anthropic", or "mock"
     template: str = ""
     roles: list[RoleConfig] = Field(default_factory=lambda: list[RoleConfig]())
+
+    @field_validator("count")
+    @classmethod
+    def _count_non_negative(cls, value: int) -> int:
+        if value < 0:
+            msg = "agents.count must be >= 0"
+            raise ValueError(msg)
+        return value
 
 
 class LayerConfig(BaseModel):
@@ -92,6 +108,14 @@ class FailureConfig(BaseModel):
     byzantine_agents: float = 0.0
     network_partition: dict[str, Any] | None = None
 
+    @field_validator("message_drop", "byzantine_agents")
+    @classmethod
+    def _rate_in_unit_interval(cls, value: float) -> float:
+        if not 0.0 <= value <= 1.0:
+            msg = "failure rates must be between 0 and 1"
+            raise ValueError(msg)
+        return value
+
 
 class OutputConfig(BaseModel):
     """Output configuration for traces and reports.
@@ -124,6 +148,30 @@ class ScenarioConfig(BaseModel):
     metrics: list[str] = Field(default_factory=list)
     output: OutputConfig = Field(default_factory=OutputConfig)
     seed: int = 0
+
+    @field_validator("tier")
+    @classmethod
+    def _supported_tier(cls, value: int) -> int:
+        if value not in (1, 2):
+            msg = "tier must be 1 or 2"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("duration")
+    @classmethod
+    def _valid_duration(cls, value: str) -> str:
+        if not value.startswith("ticks:"):
+            msg = "duration must be formatted as 'ticks: <positive-int>'"
+            raise ValueError(msg)
+        try:
+            ticks = int(value.split(":", 1)[1].strip())
+        except ValueError as exc:
+            msg = "duration must be formatted as 'ticks: <positive-int>'"
+            raise ValueError(msg) from exc
+        if ticks <= 0:
+            msg = "duration tick count must be positive"
+            raise ValueError(msg)
+        return value
 
     def get_max_ticks(self) -> int:
         """Parse the duration field into max ticks.

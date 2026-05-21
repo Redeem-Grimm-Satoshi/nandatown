@@ -78,6 +78,11 @@ def validate_events(
     return results
 
 
+def _message_body(ev: dict[str, Any]) -> str:
+    """Return payload text without the signature suffix added by reference agents."""
+    return str(ev.get("msg", "")).rsplit("|sig:", 1)[0]
+
+
 # ---------------------------------------------------------------------------
 # Marketplace validators
 # ---------------------------------------------------------------------------
@@ -97,7 +102,7 @@ def validate_marketplace_no_double_sell(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if not msg.startswith("sold:"):
             continue
         parts = msg.split(":")
@@ -132,7 +137,7 @@ def validate_marketplace_responses(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("buy:"):
             parts = msg.split(":")
             if len(parts) >= 3:
@@ -172,7 +177,7 @@ def validate_marketplace_price_agreement(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("buy:"):
             parts = msg.split(":")
             if len(parts) >= 3:
@@ -208,7 +213,9 @@ def validate_marketplace_price_agreement(
                     continue
                 key = (buyer, seller, product)
                 valid = offered_prices.get(key, set())
-                if valid and sold_price not in valid:
+                if not valid:
+                    mismatches.append(f"{seller} sold {product} to {buyer} without an offer")
+                elif sold_price not in valid:
                     mismatches.append(
                         f"{seller} sold {product} to {buyer} at {sold_price}, valid prices: {valid}"
                     )
@@ -241,7 +248,7 @@ def validate_auction_winner_highest(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("bid:"):
             parts = msg.split(":")
             if len(parts) >= 3:
@@ -293,7 +300,7 @@ def validate_auction_single_winner(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("won:"):
             parts = msg.split(":")
             if len(parts) >= 2:
@@ -326,7 +333,7 @@ def validate_auction_all_notified(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("bid:"):
             parts = msg.split(":")
             if len(parts) >= 2:
@@ -375,7 +382,7 @@ def validate_voting_tally(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("vote:"):
             parts = msg.split(":")
             if len(parts) >= 3:
@@ -429,7 +436,7 @@ def validate_voting_all_counted(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("vote:"):
             parts = msg.split(":")
             if len(parts) >= 4:
@@ -470,7 +477,7 @@ def validate_voting_no_double_vote(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if not msg.startswith("vote:"):
             continue
         parts = msg.split(":")
@@ -514,7 +521,7 @@ def validate_consensus_agreement(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("vote:"):
             parts = msg.split(":")
             if len(parts) >= 3:
@@ -538,8 +545,22 @@ def validate_consensus_agreement(
 
     violations: list[str] = []
     for rnd, (accepts, total) in committed_rounds.items():
-        if total > 0 and accepts / total < 2 / 3:
-            violations.append(f"round {rnd}: committed with only {accepts}/{total} accepts")
+        actual_votes = votes.get(rnd, [])
+        actual_accepts = sum(1 for vote in actual_votes if vote == "accept")
+        actual_total = len(actual_votes)
+        if actual_total == 0:
+            violations.append(f"round {rnd}: committed with no observed votes")
+            continue
+        if accepts != actual_accepts or total != actual_total:
+            violations.append(
+                f"round {rnd}: reported {accepts}/{total} but actual "
+                f"{actual_accepts}/{actual_total}"
+            )
+            continue
+        if actual_accepts / actual_total < 2 / 3:
+            violations.append(
+                f"round {rnd}: committed with only {actual_accepts}/{actual_total} accepts"
+            )
 
     if violations:
         return [ValidationResult("consensus_agreement", False, "; ".join(violations))]
@@ -556,8 +577,8 @@ def validate_consensus_validity(
     events: list[dict[str, Any]],
 ) -> list[ValidationResult]:
     """Only proposed values can be committed (no fabricated values)."""
-    # round -> proposed value
-    proposed: dict[str, str] = {}
+    # round -> proposed values
+    proposed: dict[str, set[str]] = defaultdict(set)
     # round -> committed?
     committed_rounds: set[str] = set()
     # round -> value from result (if encoded in the result)
@@ -566,13 +587,13 @@ def validate_consensus_validity(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("propose:"):
             parts = msg.split(":")
             if len(parts) >= 3:
                 rnd = parts[1]
                 value = parts[2]
-                proposed[rnd] = value
+                proposed[rnd].add(value)
         elif msg.startswith("result:"):
             parts = msg.split(":")
             if len(parts) >= 3:
@@ -584,17 +605,19 @@ def validate_consensus_validity(
                         result_details[rnd] = parts[4]
 
     violations: list[str] = []
+    for rnd, values in proposed.items():
+        if len(values) > 1:
+            violations.append(f"round {rnd}: conflicting proposals {values}")
+
     for rnd in committed_rounds:
         if rnd not in proposed:
             violations.append(f"round {rnd}: committed but no proposal found")
 
     # Also check that result values match proposals if present
     for rnd, val in result_details.items():
-        prop = proposed.get(rnd, "")
-        if prop and val != prop:
-            violations.append(
-                f"round {rnd}: committed value {val!r} differs from proposed {prop!r}"
-            )
+        prop = proposed.get(rnd, set())
+        if prop and val not in prop:
+            violations.append(f"round {rnd}: committed value {val!r} not in proposed {prop!r}")
 
     if violations:
         return [ValidationResult("consensus_validity", False, "; ".join(violations))]
@@ -617,7 +640,7 @@ def validate_consensus_no_conflict(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if not msg.startswith("result:"):
             continue
         parts = msg.split(":")
@@ -625,8 +648,8 @@ def validate_consensus_no_conflict(
             rnd = parts[1]
             outcome = parts[2]
             if outcome == "committed":
-                tally = parts[3]
-                commits[rnd].add(tally)
+                committed_value = parts[4] if len(parts) >= 5 else parts[3]
+                commits[rnd].add(committed_value)
 
     conflicts = {rnd: tallies for rnd, tallies in commits.items() if len(tallies) > 1}
     if conflicts:
@@ -654,43 +677,49 @@ def validate_supply_chain_pipeline(
     The pipeline is: supplier (material:) -> manufacturer (product:) ->
     distributor (shipment:) -> retailer (delivered:).
     """
-    has_material = False
-    has_product = False
-    has_shipment = False
-    has_delivered = False
+    material_rounds: set[str] = set()
+    products: set[tuple[str, str]] = set()
+    shipments: set[tuple[str, str]] = set()
+    deliveries: set[tuple[str, str]] = set()
 
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("material:"):
-            has_material = True
+            parts = msg.split(":")
+            if len(parts) >= 2:
+                material_rounds.add(parts[1])
         elif msg.startswith("product:"):
-            has_product = True
+            parts = msg.split(":")
+            if len(parts) >= 3:
+                products.add((parts[1], parts[2]))
         elif msg.startswith("shipment:"):
-            has_shipment = True
+            parts = msg.split(":")
+            if len(parts) >= 3:
+                shipments.add((parts[1], parts[2]))
         elif msg.startswith("delivered:"):
-            has_delivered = True
+            parts = msg.split(":")
+            if len(parts) >= 3:
+                deliveries.add((parts[1], parts[2]))
 
-    if has_delivered:
-        missing = []
-        if not has_material:
-            missing.append("material")
-        if not has_product:
-            missing.append("product")
-        if not has_shipment:
-            missing.append("shipment")
-        if missing:
-            return [
-                ValidationResult(
-                    "supply_chain_pipeline",
-                    False,
-                    f"delivered without: {', '.join(missing)}",
-                )
-            ]
-    elif has_material:
-        # Materials sent but nothing delivered — might be ok if pipeline broke
-        pass
+    missing: list[str] = []
+    for rnd, product in sorted(deliveries):
+        if rnd not in material_rounds:
+            missing.append(f"{rnd}/{product}: material")
+        if (rnd, product) not in products:
+            missing.append(f"{rnd}/{product}: product")
+        if (rnd, product) not in shipments:
+            missing.append(f"{rnd}/{product}: shipment")
+
+    if missing:
+        return [
+            ValidationResult(
+                "supply_chain_pipeline",
+                False,
+                f"delivered without matching: {', '.join(missing)}",
+            )
+        ]
 
     return [ValidationResult("supply_chain_pipeline", True, "all hops present")]
 
@@ -699,18 +728,24 @@ def validate_supply_chain_no_lost(
     events: list[dict[str, Any]],
 ) -> list[ValidationResult]:
     """Every material sent eventually results in a delivery or explicit failure."""
-    materials_sent = 0
-    delivered = 0
+    materials_by_round: dict[str, int] = defaultdict(int)
+    delivered_by_round: dict[str, int] = defaultdict(int)
 
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("material:"):
-            materials_sent += 1
+            parts = msg.split(":")
+            if len(parts) >= 2:
+                materials_by_round[parts[1]] += 1
         elif msg.startswith("delivered:"):
-            delivered += 1
+            parts = msg.split(":")
+            if len(parts) >= 2:
+                delivered_by_round[parts[1]] += 1
 
+    materials_sent = sum(materials_by_round.values())
+    delivered = sum(delivered_by_round.values())
     if materials_sent > 0 and delivered == 0:
         return [
             ValidationResult(
@@ -719,13 +754,19 @@ def validate_supply_chain_no_lost(
                 f"{materials_sent} materials sent but 0 delivered",
             )
         ]
-    if materials_sent > 0 and delivered < materials_sent:
+    losses: list[str] = []
+    for rnd, sent in sorted(materials_by_round.items()):
+        got = delivered_by_round.get(rnd, 0)
+        if got < sent:
+            losses.append(f"round {rnd}: {sent - got} of {sent}")
+
+    if losses:
         lost = materials_sent - delivered
         return [
             ValidationResult(
                 "supply_chain_no_lost",
                 False,
-                f"{lost} of {materials_sent} materials not delivered",
+                f"{lost} of {materials_sent} materials not delivered ({'; '.join(losses)})",
             )
         ]
     return [
@@ -753,7 +794,7 @@ def validate_reputation_scoring(
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("report:"):
             parts = msg.split(":")
             if len(parts) >= 4:
@@ -776,11 +817,11 @@ def validate_reputation_scoring(
     # The core invariant: agents with bad reports should have lower scores
     # than they would without those reports.  We verify that at least one
     # "bad" report exists for every cheater.
-    bad_agents_with_reports = set()
+    bad_agents_with_reports: set[str] = set()
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("cheat:"):
             parts = msg.split(":")
             if len(parts) >= 3:
@@ -815,7 +856,7 @@ def validate_reputation_warnings(
     for ev in events:
         if ev.get("kind") != "send" and ev.get("kind") != "broadcast":
             continue
-        msg = ev.get("msg", "")
+        msg = _message_body(ev)
         if msg.startswith("report:"):
             parts = msg.split(":")
             if len(parts) >= 4:

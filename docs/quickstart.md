@@ -73,11 +73,9 @@ for r in validate_trace(Path('traces/marketplace.jsonl'), 'marketplace'):
 "
 ```
 
-> **Heads-up.** Validators check protocol invariants, not the bundled
-> scenarios themselves. `marketplace_no_double_sell` will report `FAIL`
-> against the reference trace by design — the default seller has no
-> inventory model. The validator is for *your* inventory-aware
-> implementation. See [README §Validators](../README.md#validators).
+> **Heads-up.** Validators check protocol invariants encoded in the trace.
+> Passing validators are useful regression signals, not formal proofs of
+> protocol correctness. See [README §Validators](../README.md#validators).
 
 ## 5. Edit a scenario
 

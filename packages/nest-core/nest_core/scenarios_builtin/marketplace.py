@@ -103,6 +103,8 @@ class BuyerAgent(StateMachineAgent):
 
         # Strip signature from response for verification
         body, verified = self._verify_response(ctx, msg, sender)
+        if not verified:
+            return
 
         if body.startswith("sold:"):
             parts = body.split(":")
@@ -211,6 +213,7 @@ class SellerAgent(StateMachineAgent):
         self._id = agent_id
         self._min_price = min_price
         self._sales = 0
+        self._sold_products: set[str] = set()
 
     async def on_start(self, ctx: AgentContext) -> None:
         """Register this seller in the registry.
@@ -239,6 +242,8 @@ class SellerAgent(StateMachineAgent):
 
         # Strip and verify buyer signature
         body, verified = self._verify_request(ctx, msg, sender)
+        if not verified:
+            return
 
         if body.startswith("buy:"):
             parts = body.split(":")
@@ -270,7 +275,12 @@ class SellerAgent(StateMachineAgent):
                         await ctx.send(sender, response)
                         return
 
-                if price >= self._min_price:
+                if product in self._sold_products:
+                    response = f"reject:{product}:{self._min_price}".encode()
+                    response = self._sign_payload(ctx, response)
+                    await ctx.send(sender, response)
+                elif price >= self._min_price:
+                    self._sold_products.add(product)
                     self._sales += 1
                     response = f"sold:{product}:{price}".encode()
                     response = self._sign_payload(ctx, response)
@@ -387,14 +397,31 @@ def _instantiate_plugins(plugins: dict[str, Any], all_ids: list[AgentId]) -> Non
     if trust_cls is not None and isinstance(trust_cls, type):
         plugins["trust"] = trust_cls()
 
-    # Payments — shared ledger with initial balance for each agent
+    agent_plugins: dict[AgentId, dict[str, Any]] = plugins.setdefault("_agent_plugins", {})
+
+    # Payments — per-agent handles over a shared ledger, so pay() debits the
+    # calling agent while every participant observes the same balances.
     payments_cls = plugins.get("payments")
     if payments_cls is not None and isinstance(payments_cls, type):
+        balances: dict[AgentId, int] = {aid: 1000 for aid in all_ids}
+        payment_records: dict[PaymentRef, Any] = {}
         system_id = AgentId("system")
-        ledger = payments_cls(system_id, initial_balance=0)
-        for aid in all_ids:
-            ledger._balances[aid] = 1000  # noqa: SLF001
-        plugins["payments"] = ledger
+        try:
+            plugins["payments"] = payments_cls(
+                system_id,
+                initial_balance=0,
+                balances=balances,
+                payments=payment_records,
+            )
+            for aid in all_ids:
+                agent_plugins.setdefault(aid, {})["payments"] = payments_cls(
+                    aid,
+                    initial_balance=0,
+                    balances=balances,
+                    payments=payment_records,
+                )
+        except TypeError:
+            plugins["payments"] = payments_cls(system_id, initial_balance=0)
 
     # Identity — per-agent instances that can verify all peers.
     # Each agent gets its own DidKeyIdentity for signing, with all
@@ -405,21 +432,15 @@ def _instantiate_plugins(plugins: dict[str, Any], all_ids: list[AgentId]) -> Non
         for aid in all_ids:
             identities[aid] = identity_cls(aid, seed=b"sim-seed")
 
-        # Cross-register all peers in every identity instance
+        # Cross-register all peers in every identity instance using public keys only.
         for aid, ident in identities.items():
             for peer_id, peer_ident in identities.items():
                 if peer_id != aid:
-                    ident.register_peer(
-                        peer_id,
-                        peer_ident.public_key,
-                        private_key=peer_ident._private_key,  # noqa: SLF001
-                    )
+                    ident.register_peer(peer_id, peer_ident.public_key)
 
         # Store per-agent overrides for the runner to apply
-        agent_plugins: dict[AgentId, dict[str, Any]] = {}
         for aid, ident in identities.items():
-            agent_plugins[aid] = {"identity": ident}
-        plugins["_agent_plugins"] = agent_plugins
+            agent_plugins.setdefault(aid, {})["identity"] = ident
 
         # Remove the class from the shared plugins — identity is per-agent
         plugins.pop("identity", None)

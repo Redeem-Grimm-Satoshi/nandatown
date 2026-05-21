@@ -218,7 +218,7 @@ resolved by name via entry points or a built-in default.
 |---|---|---|---|
 |  1 | Transport     | `Transport`     | `in_memory` (in-process event queue; no network I/O) |
 |  2 | Communication | `CommsProtocol` | `nest_native` (JSON envelope, base64 payload) |
-|  3 | Identity      | `Identity`      | `did_key` (HMAC-SHA256 signatures — simplified, not Ed25519) |
+|  3 | Identity      | `Identity`      | `did_key` (deterministic public-key signatures for simulation; not Ed25519) |
 |  4 | Registry      | `Registry`      | `in_memory` (dict lookup, no persistence) |
 |  5 | Auth          | `Auth`          | `jwt` (HMAC-SHA256 token; not RFC JWT) |
 |  6 | Trust         | `Trust`         | `score_average` (running mean reputation; no Sybil resistance) |
@@ -259,11 +259,9 @@ for r in validate_trace(Path("traces/auction.jsonl"), "auction"):
 | Marketplace | No double-sell (same product to two buyers); every buy answered; sold price matches the offer. |
 
 > **Important.** Validators are property *checks*, not blessings of the
-> bundled scenarios. The default marketplace seller has no inventory
-> model — so `marketplace_no_double_sell` will report `FAIL` against the
-> reference trace by design. The validator is intended for
-> **inventory-aware scenarios that you build**. Same for the reputation
-> observer, which samples cheat reports probabilistically.
+> bundled scenarios. They inspect trace evidence and can still only verify
+> properties encoded in the trace. Treat a passing validator as a regression
+> signal, not a proof of protocol correctness.
 
 ---
 
@@ -301,7 +299,7 @@ Two things to know that aren't obvious:
 ## Limitations
 
 - **Reference plugins are deliberately simplified.** They're testing
-  scaffolding, not production code. HMAC-SHA256 instead of Ed25519,
+  scaffolding, not production code. Deterministic simulation signatures,
   no-op privacy, in-memory ledger, etc.
 - **Reference scenarios are minimal baselines.** They check whether
   agents *interact*, not whether a real implementation of the protocol

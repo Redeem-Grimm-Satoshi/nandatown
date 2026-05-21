@@ -151,6 +151,12 @@ class Simulator:
         partition_groups: list[list[str]] | None = None,
         plugins: dict[str, Any] | None = None,
     ) -> None:
+        if not 0.0 <= message_drop_rate <= 1.0:
+            msg = f"message_drop_rate must be between 0 and 1: {message_drop_rate}"
+            raise ValueError(msg)
+        if not 0.0 <= byzantine_fraction <= 1.0:
+            msg = f"byzantine_fraction must be between 0 and 1: {byzantine_fraction}"
+            raise ValueError(msg)
         self._seed = seed
         self._master_rng = random.Random(seed)
         self._clock = VirtualClock()
@@ -324,6 +330,12 @@ class Simulator:
                         self._trace.record(drop_rec)
                     continue
 
+                delivered_payload = event.payload
+                if event.target_id in self._byzantine_agents:
+                    delivered_payload = bytes(
+                        (b ^ self._failure_rng.randint(0, 255)) for b in event.payload
+                    )
+
                 self._message_count += 1
                 if self._trace:
                     rec: dict[str, Any] = {
@@ -331,20 +343,15 @@ class Simulator:
                         "agent": str(event.agent_id),
                         "kind": "receive",
                         "from": str(event.target_id),
-                        "size": len(event.payload),
-                        "msg": event.payload.decode("utf-8", errors="replace"),
+                        "size": len(delivered_payload),
+                        "msg": delivered_payload.decode("utf-8", errors="replace"),
                     }
                     if event.correlation_id is not None:
                         rec["corr"] = str(event.correlation_id)
                     self._trace.record(rec)
 
-                if event.target_id in self._byzantine_agents:
-                    garbled = bytes((b ^ self._failure_rng.randint(0, 255)) for b in event.payload)
-                    ctx = self._make_context(event.agent_id, target_slot)
-                    await target_slot.agent.on_message(ctx, event.target_id, garbled)
-                else:
-                    ctx = self._make_context(event.agent_id, target_slot)
-                    await target_slot.agent.on_message(ctx, event.target_id, event.payload)
+                ctx = self._make_context(event.agent_id, target_slot)
+                await target_slot.agent.on_message(ctx, event.target_id, delivered_payload)
 
         for aid, slot in self._agents.items():
             ctx = self._make_context(aid, slot)

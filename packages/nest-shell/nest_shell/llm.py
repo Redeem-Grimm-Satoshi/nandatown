@@ -10,7 +10,8 @@ Example::
 from __future__ import annotations
 
 import warnings
-from typing import Protocol, runtime_checkable
+from collections.abc import Awaitable, Callable
+from typing import Any, Protocol, cast, runtime_checkable
 
 
 @runtime_checkable
@@ -56,25 +57,27 @@ class OpenAIBackend:
         self._temperature = temperature
         self._max_tokens = max_tokens
         self._api_key = api_key  # None = use env var
-        self._client: object | None = None
+        self._client: Any | None = None
 
-    def _get_client(self) -> object:
+    def _get_client(self) -> Any:
         if self._client is None:
             import openai  # pyright: ignore[reportMissingModuleSource]
 
-            self._client = openai.AsyncOpenAI(api_key=self._api_key)  # pyright: ignore[reportUnknownMemberType]
-        return self._client
+            self._client = cast(
+                "Any",
+                openai.AsyncOpenAI(api_key=self._api_key),  # pyright: ignore[reportUnknownMemberType]
+            )
+        return cast("Any", self._client)
 
     async def complete(self, messages: list[dict[str, str]]) -> str:
-        client: object = self._get_client()
-        response = await client.chat.completions.create(  # pyright: ignore[reportUnknownMemberType]
+        client = self._get_client()
+        response: Any = await client.chat.completions.create(
             model=self._model,
-            messages=messages,  # pyright: ignore[reportArgumentType]
+            messages=messages,
             temperature=self._temperature,
             max_tokens=self._max_tokens,
         )
-        content: str = response.choices[0].message.content or ""  # pyright: ignore[reportUnknownMemberType]
-        return content
+        return str(response.choices[0].message.content or "")
 
 
 class AnthropicBackend:
@@ -99,17 +102,20 @@ class AnthropicBackend:
         self._temperature = temperature
         self._max_tokens = max_tokens
         self._api_key = api_key
-        self._client: object | None = None
+        self._client: Any | None = None
 
-    def _get_client(self) -> object:
+    def _get_client(self) -> Any:
         if self._client is None:
             import anthropic  # pyright: ignore[reportMissingImports]
 
-            self._client = anthropic.AsyncAnthropic(api_key=self._api_key)  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
-        return self._client
+            self._client = cast(
+                "Any",
+                anthropic.AsyncAnthropic(api_key=self._api_key),  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+            )
+        return cast("Any", self._client)
 
     async def complete(self, messages: list[dict[str, str]]) -> str:
-        client: object = self._get_client()
+        client = self._get_client()
         # Extract system message; Anthropic requires it as a separate parameter.
         system = ""
         chat_messages: list[dict[str, str]] = []
@@ -118,15 +124,15 @@ class AnthropicBackend:
                 system = m["content"]
             else:
                 chat_messages.append(m)
-        response: object = await client.messages.create(  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+        response: Any = await client.messages.create(
             model=self._model,
             system=system,
             messages=chat_messages,
             temperature=self._temperature,
             max_tokens=self._max_tokens,
         )
-        content_blocks: list[object] = getattr(response, "content", [])  # pyright: ignore[reportUnknownArgumentType]
-        block: object = content_blocks[0] if content_blocks else None
+        content_blocks = cast("list[Any]", getattr(response, "content", []))
+        block = content_blocks[0] if content_blocks else None
         return str(getattr(block, "text", "")) if block else ""
 
 
@@ -158,17 +164,21 @@ class LiteLLMBackend:
         self._max_tokens = max_tokens
 
     async def complete(self, messages: list[dict[str, str]]) -> str:
-        import litellm  # pyright: ignore[reportUnknownVariableType]
+        import litellm  # pyright: ignore[reportMissingImports]
 
-        response = await litellm.acompletion(  # pyright: ignore[reportUnknownMemberType]
+        acompletion = cast(
+            "Callable[..., Awaitable[Any]]",
+            litellm.acompletion,  # pyright: ignore[reportUnknownMemberType]
+        )
+        response = await acompletion(
             model=self._model,
             messages=messages,
             temperature=self._temperature,
             max_tokens=self._max_tokens,
         )
-        choices: list[object] = getattr(response, "choices", [])
+        choices = cast("list[Any]", getattr(response, "choices", []))
         if choices:
-            msg: object = getattr(choices[0], "message", None)
+            msg = getattr(choices[0], "message", None)
             content: str = str(getattr(msg, "content", "") or "") if msg else ""
             return content
         return ""

@@ -29,10 +29,17 @@ class PrepaidCredits:
         receipt = await pay.pay(AgentId("a2"), Money(amount=50), PaymentRef("p1"))
     """
 
-    def __init__(self, agent_id: AgentId, initial_balance: int = 1000) -> None:
+    def __init__(
+        self,
+        agent_id: AgentId,
+        initial_balance: int = 1000,
+        balances: dict[AgentId, int] | None = None,
+        payments: dict[PaymentRef, Receipt] | None = None,
+    ) -> None:
         self._agent_id = agent_id
-        self._balances: dict[AgentId, int] = {agent_id: initial_balance}
-        self._payments: dict[PaymentRef, Receipt] = {}
+        self._balances = balances if balances is not None else {}
+        self._balances.setdefault(agent_id, initial_balance)
+        self._payments = payments if payments is not None else {}
 
     def balance(self, agent: AgentId) -> int:
         """Check an agent's balance.
@@ -59,6 +66,13 @@ class PrepaidCredits:
 
             receipt = await pay.pay(AgentId("a2"), Money(amount=50), PaymentRef("p1"))
         """
+        if amount.amount <= 0:
+            msg = f"Payment amount must be positive: {amount.amount}"
+            raise ValueError(msg)
+        if ref in self._payments:
+            msg = f"Duplicate payment reference: {ref}"
+            raise ValueError(msg)
+
         payer_balance = self._balances.get(self._agent_id, 0)
         if payer_balance < amount.amount:
             msg = f"Insufficient balance: {payer_balance} < {amount.amount}"

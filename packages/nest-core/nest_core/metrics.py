@@ -47,6 +47,10 @@ def _load_events(path: Path) -> list[dict[str, Any]]:
     return events
 
 
+def _message_body(ev: dict[str, Any]) -> str:
+    return str(ev.get("msg", "")).rsplit("|sig:", 1)[0]
+
+
 # ---------------------------------------------------------------------------
 # Delivery rate (formerly called "success_rate" -- kept as alias for compat)
 # ---------------------------------------------------------------------------
@@ -95,7 +99,7 @@ def _deal_rate(events: list[dict[str, Any]]) -> float:
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        content = ev.get("msg", "")
+        content = _message_body(ev)
         if _BUY_RE.match(content):
             buy_count += 1
         elif _SOLD_RE.match(content):
@@ -116,7 +120,7 @@ def _rejection_rate(events: list[dict[str, Any]]) -> float:
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        content = ev.get("msg", "")
+        content = _message_body(ev)
         if _BUY_RE.match(content):
             buy_count += 1
         elif _REJECT_RE.match(content):
@@ -140,7 +144,7 @@ def _mean_rounds_to_deal(events: list[dict[str, Any]]) -> float:
     for ev in events:
         if ev.get("kind") != "send":
             continue
-        content = ev.get("msg", "")
+        content = _message_body(ev)
         agent = ev.get("agent", "")
         to = ev.get("to", "")
         frm = ev.get("from", agent)

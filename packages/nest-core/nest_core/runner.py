@@ -10,7 +10,7 @@ Example::
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from nest_core.plugins import PluginRegistry
 from nest_core.scenario import ScenarioConfig
@@ -47,6 +47,10 @@ class ScenarioRunner:
     @property
     def metrics(self) -> dict[str, float]:
         return self._metrics
+
+    @property
+    def resolved_plugins(self) -> dict[str, Any]:
+        return self._resolved_plugins
 
     def _resolve_plugins(self) -> dict[str, Any]:
         """Resolve all layer plugins from the config.
@@ -169,7 +173,7 @@ class ScenarioRunner:
             sim.add_agent(agent_id, agent)
 
         # Apply per-agent plugin overrides set by scenario factories
-        agent_plugins: dict[str, Any] = plugins.pop("_agent_plugins", {})
+        agent_plugins = cast("dict[AgentId, dict[str, Any]]", plugins.pop("_agent_plugins", {}))
         for agent_id, overrides in agent_plugins.items():
             sim.set_agent_plugins(agent_id, overrides)
 

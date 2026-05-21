@@ -16,9 +16,9 @@ Full definition: [`nest_core/layers/identity.py`](../../packages/nest-core/nest_
 
 ## Default plugin
 
-`did_key` — DID:key-shaped identity for tests. **Signs with
-HMAC-SHA256, not Ed25519.** Don't use it for anything that needs real
-cryptographic identity.
+`did_key` — DID:key-shaped identity for tests. **Uses deterministic
+public-key signatures for simulation, not Ed25519.** Don't use it for
+anything that needs real cryptographic identity.
 
 Source: [`nest_plugins_reference/identity/did_key.py`](../../packages/nest-plugins-reference/nest_plugins_reference/identity/did_key.py).
 

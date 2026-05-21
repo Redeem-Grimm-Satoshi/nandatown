@@ -16,6 +16,7 @@ from nest_core.types import (
     PaymentRef,
     PaymentStatus,
     Query,
+    Receipt,
     ServiceRef,
     Statement,
     Task,
@@ -121,6 +122,23 @@ class TestDidKeyIdentity:
         ident = DidKeyIdentity(AgentId("a1"), seed=b"seed")
         sig = ident.sign(b"payload")
         assert not ident.verify(b"wrong", sig, AgentId("a1"))
+
+    def test_verify_peer_with_public_key_only(self) -> None:
+        from nest_plugins_reference.identity.did_key import DidKeyIdentity
+
+        sender = DidKeyIdentity(AgentId("a1"), seed=b"seed")
+        verifier = DidKeyIdentity(AgentId("a2"), seed=b"seed")
+        verifier.register_peer(AgentId("a1"), sender.public_key)
+
+        sig = sender.sign(b"payload")
+        assert verifier.verify(b"payload", sig, AgentId("a1"))
+
+    def test_register_peer_rejects_private_key(self) -> None:
+        from nest_plugins_reference.identity.did_key import DidKeyIdentity
+
+        ident = DidKeyIdentity(AgentId("a1"), seed=b"seed")
+        with pytest.raises(ValueError, match="public keys only"):
+            ident.register_peer(AgentId("a2"), ident.public_key, private_key=b"secret")
 
     @pytest.mark.asyncio
     async def test_resolve(self) -> None:
@@ -301,6 +319,29 @@ class TestPrepaidCredits:
         pay = PrepaidCredits(AgentId("a1"))
         q = await pay.quote(ServiceRef("svc"))
         assert q.price.amount == 10
+
+    @pytest.mark.asyncio
+    async def test_shared_ledger_debits_calling_agent(self) -> None:
+        from nest_plugins_reference.payments.prepaid_credits import PrepaidCredits
+
+        balances = {AgentId("buyer"): 100, AgentId("seller"): 0}
+        payments: dict[PaymentRef, Receipt] = {}
+        buyer = PrepaidCredits(AgentId("buyer"), balances=balances, payments=payments)
+        seller = PrepaidCredits(AgentId("seller"), balances=balances, payments=payments)
+
+        await buyer.pay(AgentId("seller"), Money(amount=40), PaymentRef("p1"))
+
+        assert buyer.balance(AgentId("buyer")) == 60
+        assert seller.balance(AgentId("seller")) == 40
+        assert await seller.verify_payment(PaymentRef("p1")) == PaymentStatus.CONFIRMED
+
+    @pytest.mark.asyncio
+    async def test_rejects_non_positive_payment(self) -> None:
+        from nest_plugins_reference.payments.prepaid_credits import PrepaidCredits
+
+        pay = PrepaidCredits(AgentId("a1"), initial_balance=100)
+        with pytest.raises(ValueError, match="positive"):
+            await pay.pay(AgentId("a2"), Money(amount=0), PaymentRef("p1"))
 
 
 # ---------------------------------------------------------------------------

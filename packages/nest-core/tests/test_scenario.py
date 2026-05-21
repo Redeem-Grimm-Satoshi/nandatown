@@ -4,12 +4,35 @@
 from __future__ import annotations
 
 import json
+import random
 from pathlib import Path
+from typing import Any
 
 import pytest
 from nest_core.plugins import PluginRegistry
 from nest_core.runner import ScenarioRunner
 from nest_core.scenario import ScenarioConfig
+from nest_core.types import AgentId
+from nest_core.validators import validate_trace
+
+
+class _FakeAgentContext:
+    def __init__(self, agent_id: AgentId, plugins: dict[str, Any]) -> None:
+        self.agent_id = agent_id
+        self.time = 0.0
+        self.rng = random.Random(1)
+        self.plugins = plugins
+        self.sent: list[tuple[AgentId, bytes]] = []
+
+    async def send(self, to: AgentId, payload: bytes) -> None:
+        self.sent.append((to, payload))
+
+    async def broadcast(self, payload: bytes) -> None:
+        self.sent.append((AgentId("*"), payload))
+
+    async def schedule(self, delay: float, payload: bytes) -> None:
+        self.sent.append((AgentId(f"self-after-{delay}"), payload))
+
 
 # ---------------------------------------------------------------------------
 # Scenario schema tests
@@ -51,6 +74,20 @@ class TestScenarioConfig:
         assert len(config.agents.roles) == 2
         assert config.agents.roles[0].name == "buyer"
         assert config.agents.roles[1].count == 50
+
+    def test_rejects_invalid_failure_rates(self) -> None:
+        with pytest.raises(ValueError, match="between 0 and 1"):
+            ScenarioConfig.from_dict({"name": "bad", "failures": {"message_drop": 1.5}})
+
+    def test_rejects_negative_role_count(self) -> None:
+        with pytest.raises(ValueError, match="role count"):
+            ScenarioConfig.from_dict(
+                {"name": "bad", "agents": {"roles": [{"name": "buyer", "count": -1}]}}
+            )
+
+    def test_rejects_invalid_duration(self) -> None:
+        with pytest.raises(ValueError, match="duration"):
+            ScenarioConfig.from_dict({"name": "bad", "duration": "seconds: 10"})
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +138,23 @@ class TestPluginRegistry:
 
 class TestMarketplaceScenario:
     @pytest.mark.asyncio
+    async def test_seller_ignores_invalid_signature(self) -> None:
+        from nest_core.scenarios_builtin.marketplace import SellerAgent
+        from nest_plugins_reference.identity.did_key import DidKeyIdentity
+
+        seller_id = AgentId("seller-0")
+        buyer_id = AgentId("buyer-0")
+        seller_identity = DidKeyIdentity(seller_id, seed=b"sim-seed")
+        buyer_identity = DidKeyIdentity(buyer_id, seed=b"sim-seed")
+        seller_identity.register_peer(buyer_id, buyer_identity.public_key)
+        ctx = _FakeAgentContext(seller_id, {"identity": seller_identity})
+
+        seller = SellerAgent(seller_id, min_price=10)
+        await seller.on_message(ctx, buyer_id, b"buy:product-0:50|sig:00")
+
+        assert ctx.sent == []
+
+    @pytest.mark.asyncio
     async def test_marketplace_from_dict(self, tmp_path: Path) -> None:
         trace_file = tmp_path / "trace.jsonl"
         config = ScenarioConfig.from_dict(
@@ -127,6 +181,19 @@ class TestMarketplaceScenario:
         content = result_path.read_text()
         lines = [ln for ln in content.strip().split("\n") if ln]
         assert len(lines) > 0
+
+        validations = validate_trace(result_path, "marketplace")
+        assert all(r.passed for r in validations), validations
+
+        payments = runner.resolved_plugins["payments"]
+        assert len(payments._payments) > 0  # noqa: SLF001
+        balances = payments._balances  # noqa: SLF001
+        assert any(
+            balance < 1000 for aid, balance in balances.items() if str(aid).startswith("buyer-")
+        )
+        assert any(
+            balance > 1000 for aid, balance in balances.items() if str(aid).startswith("seller-")
+        )
 
         for line in lines:
             event = json.loads(line)

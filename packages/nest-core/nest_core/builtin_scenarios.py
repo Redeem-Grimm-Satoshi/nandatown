@@ -81,8 +81,4 @@ def builtin_text(name: str) -> str:
     """
     if not is_builtin(name):
         raise KeyError(name)
-    return (
-        resources.files(_PACKAGE)
-        .joinpath(f"{name}.yaml")
-        .read_text(encoding="utf-8")
-    )
+    return resources.files(_PACKAGE).joinpath(f"{name}.yaml").read_text(encoding="utf-8")

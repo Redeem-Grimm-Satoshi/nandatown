@@ -352,7 +352,7 @@ _valid_scenario_dicts = st.fixed_dictionaries(
         "tier": st.just(1),
         "seed": st.integers(min_value=0, max_value=100000),
         "description": st.text(min_size=0, max_size=50),
-        "duration": st.from_regex(r"ticks: [0-9]{1,5}", fullmatch=True),
+        "duration": st.integers(min_value=1, max_value=99999).map(lambda n: f"ticks: {n}"),
     },
 )
 

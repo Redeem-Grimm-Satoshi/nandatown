@@ -17,7 +17,7 @@ implementation per layer.
 |---|---|---|---|
 |  1 | **Transport** | Move bytes between agents. | `in_memory` (zero-latency event queue) |
 |  2 | **Communication** | Frame messages, request/response semantics. | `nest_native` (JSON envelope, base64 payload) |
-|  3 | **Identity** | Sign / verify per-agent payloads. | `did_key` (HMAC-SHA256, *not* Ed25519) |
+|  3 | **Identity** | Sign / verify per-agent payloads. | `did_key` (deterministic simulation public-key signatures, *not* Ed25519) |
 |  4 | **Registry** | Publish and discover agent cards. | `in_memory` (dict, no persistence) |
 |  5 | **Auth** | Issue, verify, revoke capability tokens. | `jwt` (HMAC-signed, *not* RFC JWT) |
 |  6 | **Trust** | Reputation scores, attestations, reports. | `score_average` (running mean) |
@@ -108,7 +108,7 @@ Two things to know that surprise newcomers:
 ## Traces
 
 Every run writes a JSONL trace — one event per line, in order. Events
-are flat dicts with at least `t` (logical tick), `kind` (`start`,
+are flat dicts with at least `ts` (logical time), `kind` (`start`,
 `send`, `receive`, `stop`), `agent`, and a payload. `nest inspect`,
 `nest report`, `nest dashboard`, and `nest_core.validators.validate_trace`
 all read the same JSONL.
@@ -120,5 +120,5 @@ You can grep, `jq`, diff, or check it into git — it's just text.
 `nest_core.validators` ships property checks for each scenario. They're
 intentional **property checks**, not blanket "did the scenario run?"
 assertions. Read the table in [the README](../README.md#validators) for
-what each one verifies, and the warning about `marketplace_no_double_sell`
-failing against the reference trace by design.
+what each one verifies. Passing validators are regression signals, not a
+formal proof of protocol correctness.
