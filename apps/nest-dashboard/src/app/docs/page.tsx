@@ -113,7 +113,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 py-14 first:pt-8">
+    <section id={id} className="scroll-mt-20 py-10 first:pt-2">
       {eyebrow && (
         <p className="eyebrow mb-4">{eyebrow}</p>
       )}
@@ -300,24 +300,7 @@ export default function DocsPage() {
 
       {/* Main content */}
       <div className="lg:ml-72">
-        <div className="mx-auto max-w-3xl px-6 pb-24 lg:px-12">
-          {/* Hero */}
-          <div className="pb-10 pt-14">
-            <p className="eyebrow">Documentation</p>
-            <h1 className="font-display mt-5 text-[clamp(2.4rem,5vw,3.8rem)] leading-[1.05] tracking-tight text-ink-900">
-              Everything you<br />
-              <span className="italic text-ink-700">need to know</span> about<br />
-              running NEST.
-            </h1>
-            <p className="mt-6 text-[1.05rem] leading-[1.65] text-ink-500 max-w-xl">
-              Install the CLI, configure a scenario, run a simulation,
-              inspect the trace. NEST is a small surface area &mdash; this
-              document covers all of it.
-            </p>
-          </div>
-
-          <div className="h-px bg-cream-400/70" />
-
+        <div className="mx-auto max-w-3xl px-6 pb-24 pt-10 lg:px-12">
           {/* Overview */}
           <Section id="overview" title="Overview">
             <p className="mb-5 text-[1.05rem] leading-[1.7] text-ink-500">
