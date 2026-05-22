@@ -521,12 +521,12 @@ function derive(events: TraceEvent[]): Derived {
   // Aggregate edge counts (directed)
   const edgeMap = new Map<string, number>();
   for (const f of flights) {
-    const key = `${f.source} ${f.target}`;
+    const key = `${f.source} ${f.target}`;
     edgeMap.set(key, (edgeMap.get(key) ?? 0) + 1);
   }
   const edges: EdgeKey[] = [];
   for (const [key, count] of edgeMap) {
-    const [source, target] = key.split(' ');
+    const [source, target] = key.split(' ');
     edges.push({ source, target, count });
   }
 
@@ -678,23 +678,13 @@ interface ForceLink extends d3.SimulationLinkDatum<ForceNode> {
 
 interface PlayerProps {
   derived: Derived;
-  simTime: number;
-  setSimTime: (t: number | ((t: number) => number)) => void;
-  playing: boolean;
-  setPlaying: (p: boolean | ((p: boolean) => boolean)) => void;
-  speed: number;
-  setSpeed: (s: number) => void;
 }
 
-function Player({
-  derived,
-  simTime,
-  setSimTime,
-  playing,
-  setPlaying,
-  speed,
-  setSpeed,
-}: PlayerProps) {
+function Player({ derived }: PlayerProps) {
+  const [simTime, setSimTime] = useState(derived.tMin);
+  const [playing, setPlaying] = useState(true);
+  const [speed, setSpeed] = useState(1);
+
   // Stage viewport (logical SVG coords). The container scales it to fit.
   const W = 900;
   const H = 580;
@@ -919,7 +909,6 @@ function Player({
 
   const resetView = () => setView({ k: 1, x: 0, y: 0 });
 
-  // ---- Derived: in-flight messages right now ----------------------------
   interface InFlight {
     source: string;
     target: string;
@@ -932,8 +921,7 @@ function Player({
     const out: InFlight[] = [];
     for (const f of derived.flights) {
       if (t < f.tStart) continue;
-      // Show in-flight for the lifetime of the message; brief tail after arrival.
-      const tail = Math.max((f.tEnd - f.tStart) * 0.05, 0.5);
+      const tail = Math.max((f.tEnd - f.tStart) * 0.04, 0.3);
       if (t > f.tEnd + tail) continue;
       const dur = Math.max(f.tEnd - f.tStart, 1e-6);
       let p = (t - f.tStart) / dur;
@@ -961,17 +949,17 @@ function Player({
   }, [inFlight]);
 
   // Edge weights derived from messages roughly near current time (windowed)
-  const window = (derived.tMax - derived.tMin) * 0.05;
+  const recentWindow = (derived.tMax - derived.tMin) * 0.05;
   const recentEdges = useMemo(() => {
     const m = new Map<string, number>();
     for (const f of derived.flights) {
-      if (f.tEnd < simTime - window) continue;
+      if (f.tEnd < simTime - recentWindow) continue;
       if (f.tStart > simTime) continue;
-      const key = `${f.source} ${f.target}`;
+      const key = `${f.source} ${f.target}`;
       m.set(key, (m.get(key) ?? 0) + 1);
     }
     return m;
-  }, [simTime, derived.flights, window]);
+  }, [simTime, derived.flights, recentWindow]);
 
   const maxRecent = Math.max(1, ...recentEdges.values());
 
@@ -1035,10 +1023,10 @@ function Player({
 
           {/* Static edges — only ones with traffic in current window */}
           {derived.edges.map((e) => {
-            const p1 = positions.get(e.source);
-            const p2 = positions.get(e.target);
+            const p1 = positionsRef.current.get(e.source);
+            const p2 = positionsRef.current.get(e.target);
             if (!p1 || !p2) return null;
-            const key = `${e.source} ${e.target}`;
+            const key = `${e.source} ${e.target}`;
             const recent = recentEdges.get(key) ?? 0;
             if (recent === 0 && hover === null) return null;
             const isHovered =
@@ -1064,8 +1052,8 @@ function Player({
 
           {/* In-flight messages — small twig segments oriented along travel */}
           {inFlight.map((f, i) => {
-            const p1 = positions.get(f.source);
-            const p2 = positions.get(f.target);
+            const p1 = positionsRef.current.get(f.source);
+            const p2 = positionsRef.current.get(f.target);
             if (!p1 || !p2) return null;
             const dx = p2.x - p1.x;
             const dy = p2.y - p1.y;
@@ -1107,7 +1095,7 @@ function Player({
 
           {/* Agent nodes — line-art icons, no background */}
           {derived.agents.map((a) => {
-            const pos = positions.get(a.id);
+            const pos = positionsRef.current.get(a.id);
             if (!pos) return null;
             const active = activeAgents.has(a.id);
             const dimmed = hover && hover !== a.id && !neighborSet.has(a.id);
