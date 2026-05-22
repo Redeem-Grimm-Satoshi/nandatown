@@ -22,6 +22,7 @@ const TOC: TocItem[] = [
   { id: 'templates', label: 'Agent templates' },
   { id: 'plugins', label: 'Writing a plugin' },
   { id: 'cli', label: 'CLI reference' },
+  { id: 'troubleshooting', label: 'Troubleshooting' },
   { id: 'faq', label: 'FAQ' },
 ];
 
@@ -248,6 +249,32 @@ function FaqItem({
   );
 }
 
+function TroubleshootItem({
+  title,
+  cause,
+  fix,
+}: {
+  title: string;
+  cause: React.ReactNode;
+  fix: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-cream-400/70 bg-cream-50 p-6">
+      <p className="font-mono text-[0.85rem] text-rust leading-snug mb-4">
+        {title}
+      </p>
+      <p className="text-[0.92rem] leading-[1.65] text-ink-500">
+        <strong className="text-ink-900">What it means: </strong>
+        {cause}
+      </p>
+      <p className="mt-3 text-[0.92rem] leading-[1.65] text-ink-500">
+        <strong className="text-ink-900">Fix: </strong>
+        {fix}
+      </p>
+    </div>
+  );
+}
+
 /* ================================================================== */
 /*  Page                                                               */
 /* ================================================================== */
@@ -310,10 +337,26 @@ export default function DocsPage() {
               conditions &mdash; and NEST runs the simulation, recording every
               message in a JSONL trace you can inspect and replay.
             </p>
-            <p className="mb-8 text-[1.05rem] leading-[1.7] text-ink-500">
+            <p className="mb-5 text-[1.05rem] leading-[1.7] text-ink-500">
               NEST is an open initiative by Project NANDA. It is
               open-source research software (Apache 2.0).
             </p>
+
+            <div className="mb-8 rounded-2xl border border-rust/30 bg-rust/5 p-5">
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-rust mb-2">
+                How NEST runs
+              </p>
+              <p className="text-[0.95rem] leading-[1.65] text-ink-600">
+                NEST is a <strong className="text-ink-900">Python CLI you install on your own machine</strong>. The simulator runs locally and writes a JSONL trace to disk. This dashboard
+                shows reference docs, pre-recorded example traces in the
+                Visualizer, and the Experiments gallery &mdash; but it does
+                not execute scenarios in your browser. Use the{' '}
+                <a href="#installation" className="text-rust hover:text-rust/80 underline underline-offset-2">
+                  Installation
+                </a>{' '}
+                steps below to get the <InlineCode>nest</InlineCode> command.
+              </p>
+            </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               {[
@@ -473,38 +516,73 @@ export default function DocsPage() {
           {/* Installation */}
           <Section id="installation" title="Installation">
             <h3 className="text-[1.15rem] font-medium text-ink-900 mb-3">
+              Prerequisites
+            </h3>
+            <p className="mb-3 text-[0.95rem] text-ink-500">
+              NEST requires <strong className="text-ink-900">Python 3.12 or newer</strong>. Confirm yours before installing:
+            </p>
+            <CodeBlock>python3 --version</CodeBlock>
+            <p className="mt-3 mb-8 text-[0.92rem] text-ink-400">
+              If you see <InlineCode>3.11</InlineCode> or older, install Python 3.12 first
+              (<InlineCode>brew install python@3.12</InlineCode> on macOS,{' '}
+              <InlineCode>sudo apt install python3.12</InlineCode> on Ubuntu, or use{' '}
+              <InlineCode>pyenv</InlineCode>). Installing nest-core on an older Python will fail with a{' '}
+              <InlineCode>requires-python</InlineCode> error.
+            </p>
+
+            <h3 className="text-[1.15rem] font-medium text-ink-900 mb-3">
               Quick install (from PyPI)
             </h3>
-            <CodeBlock>pip install &quot;nest-core[plugins]&quot;</CodeBlock>
-            <p className="mb-8 text-[0.95rem] text-ink-500">
-              This installs the NEST engine, CLI, and all twelve default
-              plugins. Requires <strong className="text-ink-900">Python 3.12+</strong>.
+            <CodeBlock>
+{`python3.12 -m venv .venv
+source .venv/bin/activate
+pip install "nest-core[plugins]"`}
+            </CodeBlock>
+            <p className="mt-3 mb-8 text-[0.95rem] text-ink-500">
+              This installs the NEST engine, the <InlineCode>nest</InlineCode>{' '}
+              CLI, the reference plugins for all 12 layers, and the seven
+              built-in scenarios. The venv keeps it from clashing with other
+              Python projects.
+            </p>
+            <p className="mb-8 text-[0.92rem] text-ink-400">
+              Prefer to skip the venv? Use{' '}
+              <a
+                href="https://pipx.pypa.io/stable/installation/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-rust hover:text-rust/80 underline underline-offset-2"
+              >
+                pipx
+              </a>{' '}
+              instead: <InlineCode>pipx install &quot;nest-core[plugins]&quot;</InlineCode>{' '}
+              &mdash; it gives you a global <InlineCode>nest</InlineCode> on PATH without polluting the system Python.
             </p>
 
             <h3 className="text-[1.15rem] font-medium text-ink-900 mb-3">
               Or: install from source (development)
             </h3>
-            <ul className="mb-4 space-y-1.5 text-[0.95rem] text-ink-500">
-              <li>
-                — <strong className="text-ink-900">Python 3.12+</strong>: check with{' '}
-                <InlineCode>python --version</InlineCode>
-              </li>
-              <li>
-                — <strong className="text-ink-900">uv</strong> (recommended):{' '}
-                <InlineCode>pip install uv</InlineCode>
-              </li>
-            </ul>
-            <CodeBlock>pip install &quot;nest-core[plugins]&quot;</CodeBlock>
-
-            <p className="mt-4 text-[0.95rem] text-ink-500">
-              This installs the CLI, the reference plugins for all 12 layers,
-              and the seven built-in scenarios. To hack on NEST itself instead:
+            <p className="mb-3 text-[0.95rem] text-ink-500">
+              To hack on NEST itself, clone the repo and use{' '}
+              <a
+                href="https://docs.astral.sh/uv/getting-started/installation/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-rust hover:text-rust/80 underline underline-offset-2"
+              >
+                uv
+              </a>{' '}
+              for the workspace install:
             </p>
             <CodeBlock>
 {`git clone https://github.com/mariagorskikh/nest.git
 cd nest
-uv sync`}
+uv sync
+uv run nest doctor`}
             </CodeBlock>
+            <p className="mt-3 text-[0.92rem] text-ink-400">
+              With uv, every command becomes <InlineCode>uv run nest …</InlineCode> &mdash;
+              no manual venv activation needed.
+            </p>
 
             <h3 className="mt-8 text-[1.15rem] font-medium text-ink-900 mb-3">
               Verify your installation
@@ -525,6 +603,14 @@ NEST doctor
 ========================================
 7/7 checks passed`}
             </TerminalBlock>
+            <p className="mt-3 text-[0.92rem] text-ink-400">
+              If you get <InlineCode>command not found: nest</InlineCode>, the venv
+              isn&apos;t active or your shell&apos;s PATH doesn&apos;t include the
+              install location. See{' '}
+              <a href="#troubleshooting" className="text-rust hover:text-rust/80 underline underline-offset-2">
+                Troubleshooting
+              </a>.
+            </p>
 
             <h3 className="mt-8 text-[1.15rem] font-medium text-ink-900 mb-3">
               For Tier 2 (LLM agents)
@@ -539,16 +625,32 @@ export OPENAI_API_KEY="sk-..."
 # or Anthropic
 export ANTHROPIC_API_KEY="sk-ant-..."`}
             </CodeBlock>
+            <p className="mt-3 text-[0.92rem] text-ink-400">
+              Tier 1 scenarios (like <InlineCode>marketplace</InlineCode>) run
+              entirely offline and never call an API.
+            </p>
           </Section>
 
           <div className="h-px bg-cream-400/70" />
 
           {/* First experiment */}
           <Section id="first-experiment" title="Your first experiment">
-            <p className="mb-8 text-[1.05rem] leading-[1.7] text-ink-500">
+            <p className="mb-5 text-[1.05rem] leading-[1.7] text-ink-500">
               Run a marketplace simulation end-to-end in three steps.
               Fifty buyers and fifty sellers negotiate prices over ten rounds.
             </p>
+
+            <div className="mb-8 rounded-xl border border-cream-400/70 bg-cream-200/60 p-5 text-[0.92rem] leading-[1.6] text-ink-600">
+              <p>
+                <strong className="text-ink-900">Before you start:</strong> open a terminal,{' '}
+                <InlineCode>cd</InlineCode> into the directory where you want
+                output to land, and make sure your venv is active (or prefix
+                each command with <InlineCode>uv run</InlineCode> if you installed
+                from source). The simulator writes its trace to a{' '}
+                <InlineCode>traces/</InlineCode> folder relative to your current
+                working directory.
+              </p>
+            </div>
 
             {[
               {
@@ -881,6 +983,132 @@ my_decay = "my_trust.plugin:DecayTrust"`}
 
           <div className="h-px bg-cream-400/70" />
 
+          {/* Troubleshooting */}
+          <Section id="troubleshooting" title="Troubleshooting">
+            <p className="mb-6 text-[1.05rem] leading-[1.7] text-ink-500">
+              Most install problems trace back to four things: the wrong
+              Python, a missing venv, a stale shell PATH, or running{' '}
+              <InlineCode>nest</InlineCode> from the wrong directory. Match
+              your symptom to one of the entries below.
+            </p>
+
+            <div className="space-y-5">
+              <TroubleshootItem
+                title="ERROR: Package 'nest-core' requires a different Python"
+                cause={
+                  <>
+                    Your active Python is older than 3.12. <InlineCode>pip</InlineCode> refuses to install because{' '}
+                    <InlineCode>nest-core</InlineCode> declares{' '}
+                    <InlineCode>requires-python &gt;=3.12</InlineCode>.
+                  </>
+                }
+                fix={
+                  <>
+                    Install Python 3.12 (<InlineCode>brew install python@3.12</InlineCode>,{' '}
+                    <InlineCode>sudo apt install python3.12</InlineCode>, or pyenv) and
+                    create a venv with it explicitly:{' '}
+                    <InlineCode>python3.12 -m venv .venv</InlineCode>, then{' '}
+                    <InlineCode>source .venv/bin/activate</InlineCode> before pip-installing.
+                  </>
+                }
+              />
+
+              <TroubleshootItem
+                title="zsh: command not found: nest"
+                cause={
+                  <>
+                    Either your venv isn&apos;t activated in this shell, or you
+                    used <InlineCode>pip install --user</InlineCode> and{' '}
+                    <InlineCode>~/.local/bin</InlineCode> isn&apos;t on your PATH.
+                  </>
+                }
+                fix={
+                  <>
+                    Run <InlineCode>source .venv/bin/activate</InlineCode> in
+                    the directory where you created the venv, then retry.
+                    Alternatively, install with{' '}
+                    <a
+                      href="https://pipx.pypa.io/stable/installation/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-rust hover:text-rust/80 underline underline-offset-2"
+                    >
+                      pipx
+                    </a>{' '}
+                    (<InlineCode>pipx install &quot;nest-core[plugins]&quot;</InlineCode>) to
+                    get a global <InlineCode>nest</InlineCode> binary.
+                  </>
+                }
+              />
+
+              <TroubleshootItem
+                title="nest run marketplace: Scenario 'marketplace' not found"
+                cause={
+                  <>
+                    The <InlineCode>[plugins]</InlineCode> extra wasn&apos;t
+                    installed, so the built-in scenario bundle is missing.
+                  </>
+                }
+                fix={
+                  <>
+                    Reinstall with the extra:{' '}
+                    <InlineCode>pip install &quot;nest-core[plugins]&quot;</InlineCode>{' '}
+                    (the quotes matter on zsh &mdash; without them the shell
+                    parses <InlineCode>[plugins]</InlineCode> as a glob). Run{' '}
+                    <InlineCode>nest scenarios list</InlineCode> to confirm
+                    the seven built-in scenarios are visible.
+                  </>
+                }
+              />
+
+              <TroubleshootItem
+                title="Trace file isn't where I expected"
+                cause={
+                  <>
+                    <InlineCode>nest run</InlineCode> writes to{' '}
+                    <InlineCode>./traces/&lt;scenario&gt;.jsonl</InlineCode>{' '}
+                    relative to your current working directory. If you ran it
+                    from your home directory, that&apos;s where{' '}
+                    <InlineCode>traces/</InlineCode> got created.
+                  </>
+                }
+                fix={
+                  <>
+                    <InlineCode>cd</InlineCode> into a project directory first,
+                    or pass <InlineCode>--out /path/to/trace.jsonl</InlineCode> to
+                    pick the destination. <InlineCode>nest run --help</InlineCode> lists
+                    all flags.
+                  </>
+                }
+              />
+
+              <TroubleshootItem
+                title="I can't find a 'Run' button on this website"
+                cause={
+                  <>
+                    Correct &mdash; this dashboard renders pre-recorded JSONL
+                    traces in the Visualizer and links to docs. It does not
+                    host the simulator. The simulator is the local{' '}
+                    <InlineCode>nest</InlineCode> CLI you installed above.
+                  </>
+                }
+                fix={
+                  <>
+                    Run a scenario locally (<InlineCode>nest run marketplace</InlineCode>),
+                    then drop the generated{' '}
+                    <InlineCode>traces/marketplace.jsonl</InlineCode> into the{' '}
+                    <a href="/visualizer" className="text-rust hover:text-rust/80 underline underline-offset-2">
+                      Visualizer
+                    </a>{' '}
+                    to play it back.
+                  </>
+                }
+              />
+            </div>
+          </Section>
+
+          <div className="h-px bg-cream-400/70" />
+
           {/* FAQ */}
           <Section id="faq" title="FAQ">
             <div className="rounded-2xl border border-cream-400/70 bg-cream-50 px-7">
@@ -888,9 +1116,30 @@ my_decay = "my_trust.plugin:DecayTrust"`}
                 question="Can I pip install this?"
                 answer={
                   <p>
-                    Yes. Run <InlineCode>pip install &quot;nest-core[plugins]&quot;</InlineCode> and
-                    you are ready to go. This installs the engine, CLI, and all
-                    twelve default plugins.
+                    Yes &mdash; into a Python 3.12+ venv:{' '}
+                    <InlineCode>pip install &quot;nest-core[plugins]&quot;</InlineCode>.
+                    That installs the engine, the <InlineCode>nest</InlineCode>{' '}
+                    CLI, and all twelve default plugins. See{' '}
+                    <a href="#installation" className="text-rust hover:text-rust/80 underline underline-offset-2">
+                      Installation
+                    </a>{' '}
+                    for the full walkthrough.
+                  </p>
+                }
+              />
+              <FaqItem
+                question="Can I run scenarios in the browser?"
+                answer={
+                  <p>
+                    Not on this dashboard. The website renders pre-recorded
+                    JSONL traces and links to docs, but the simulator itself
+                    is the local <InlineCode>nest</InlineCode> CLI. To play
+                    your own runs, generate a trace locally
+                    (<InlineCode>nest run marketplace</InlineCode>) and load
+                    it into the{' '}
+                    <a href="/visualizer" className="text-rust hover:text-rust/80 underline underline-offset-2">
+                      Visualizer
+                    </a>.
                   </p>
                 }
               />
