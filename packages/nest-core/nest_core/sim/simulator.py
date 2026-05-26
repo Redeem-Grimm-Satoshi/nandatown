@@ -23,7 +23,7 @@ from nest_core.sim.agent import AgentContext, StateMachineAgent
 from nest_core.sim.clock import VirtualClock
 from nest_core.sim.events import Event, EventQueue
 from nest_core.sim.trace import TraceWriter
-from nest_core.sim.transport import InMemoryTransport
+from nest_core.sim.transport import InMemoryTransport, LatencyModel
 from nest_core.types import AgentId, CorrelationId
 
 
@@ -150,6 +150,7 @@ class Simulator:
         byzantine_fraction: float = 0.0,
         partition_groups: list[list[str]] | None = None,
         plugins: dict[str, Any] | None = None,
+        latency_model: LatencyModel | None = None,
     ) -> None:
         if not 0.0 <= message_drop_rate <= 1.0:
             msg = f"message_drop_rate must be between 0 and 1: {message_drop_rate}"
@@ -174,7 +175,16 @@ class Simulator:
         self._partition_groups = partition_groups
         self._byzantine_agents: set[AgentId] = set()
         self._partition_map: dict[AgentId, int] = {}
+        # The failure RNG drives drop decisions and Byzantine corruption.
         self._failure_rng = random.Random(self._master_rng.randint(0, 2**63))
+        self._latency_model: LatencyModel | None = latency_model
+        # Dedicated RNG for latency so its draws don't perturb existing
+        # failure-RNG sequences (or vice versa).  Derive it from ``seed``
+        # directly rather than from the master RNG so adding a latency
+        # model never changes the per-agent or failure-RNG streams of an
+        # existing scenario — same seed still produces byte-identical
+        # traces when ``latency_model`` is None or zero-latency.
+        self._latency_rng = random.Random((seed * 2654435761 + 0xA1A7C7) & ((1 << 63) - 1))
         self._plugins: dict[str, Any] = plugins or {}
         self._agent_plugins: dict[AgentId, dict[str, Any]] = {}
 
@@ -227,7 +237,14 @@ class Simulator:
         """
         agent_rng = random.Random(self._master_rng.randint(0, 2**63))
         all_ids = [aid for aid in self._agents]
-        transport = InMemoryTransport(agent_id, self._queue, self._clock, all_ids)
+        transport = InMemoryTransport(
+            agent_id,
+            self._queue,
+            self._clock,
+            all_ids,
+            latency_model=self._latency_model,
+            latency_rng=self._latency_rng,
+        )
         self._agents[agent_id] = _AgentSlot(
             agent=agent,
             transport=transport,

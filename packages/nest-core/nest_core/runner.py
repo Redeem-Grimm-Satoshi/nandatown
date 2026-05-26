@@ -28,6 +28,35 @@ def _parse_partition_groups(raw: object) -> list[list[str]] | None:
     return result if result else None
 
 
+def _build_latency_model_from_config(
+    transport_config: dict[str, Any] | None,
+) -> Any:
+    """Build a ``LatencyModel`` from scenario ``transport_config`` or return None.
+
+    Returns ``None`` (i.e. zero-latency) when no model is configured so
+    existing scenarios keep their byte-identical traces.
+
+    Example::
+
+        model = _build_latency_model_from_config({"kind": "exponential", "mean": 0.02})
+    """
+    if not transport_config:
+        return None
+    raw_latency = transport_config.get("latency")
+    # Allow the latency block to live at the top level too:
+    #     transport_config:
+    #       kind: exponential
+    #       mean: 0.02
+    spec = raw_latency if isinstance(raw_latency, dict) else transport_config
+    if not spec:
+        return None
+    try:
+        from nest_plugins_reference.transport.latency import make_latency_model
+    except ImportError:  # pragma: no cover — only when reference plugins aren't installed
+        return None
+    return make_latency_model(spec)
+
+
 class ScenarioRunner:
     """Runs a scenario end-to-end: resolves plugins, creates agents, runs simulation.
 
@@ -51,6 +80,14 @@ class ScenarioRunner:
     @property
     def resolved_plugins(self) -> dict[str, Any]:
         return self._resolved_plugins
+
+    def _build_latency_model(self) -> Any:
+        """Build the latency model from ``scenario.transport_config``.
+
+        Returns ``None`` when no model is configured (zero-latency, the
+        legacy default).
+        """
+        return _build_latency_model_from_config(self._config.transport_config)
 
     def _resolve_plugins(self) -> dict[str, Any]:
         """Resolve all layer plugins from the config.
@@ -159,6 +196,8 @@ class ScenarioRunner:
             raw_groups = failures.network_partition.get("groups")
             partition_groups = _parse_partition_groups(raw_groups)
 
+        latency_model = self._build_latency_model()
+
         sim = Simulator(
             seed=self._config.seed,
             trace_path=trace_path,
@@ -166,6 +205,7 @@ class ScenarioRunner:
             byzantine_fraction=failures.byzantine_agents,
             partition_groups=partition_groups,
             plugins=plugins,
+            latency_model=latency_model,
         )
 
         agents = self._create_agents(plugins)

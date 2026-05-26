@@ -296,9 +296,36 @@ Two things to know that aren't obvious:
    transport delivers at `time = now`, so the virtual clock stays at
    `0.0` and `mean_latency` / `duration` will both be `0.0` in your
    trace. The event queue still orders events deterministically, so
-   *correctness* tests are fine. Latency *numbers* become meaningful
-   only when agents use `ctx.schedule(delay, ...)` or you write a
-   transport plugin that introduces per-hop delay.
+   *correctness* tests are fine. To get meaningful latency *numbers*,
+   add a `transport_config:` block to your scenario YAML (see below) or
+   use `ctx.schedule(delay, ...)` from your agent code.
+
+### Per-hop latency
+
+Add this to any scenario YAML to make the in-memory transport delay
+each delivery by a sampled per-hop latency. The samples are drawn from
+a dedicated RNG so the trace stays byte-identical under a fixed seed.
+
+```yaml
+transport_config:
+  kind: exponential   # constant | uniform | exponential | normal | pair_matrix | zero
+  mean: 0.020         # seconds
+  jitter: 0.005       # optional uniform jitter ±0.005 s, clamped at 0
+```
+
+Available models:
+
+| `kind`         | Parameters                              | When to use it |
+|----------------|-----------------------------------------|----------------|
+| `constant`     | `mean`                                  | Every hop costs the same. |
+| `uniform`      | `low`, `high`                           | Bounded jitter, easy to reason about. |
+| `exponential`  | `mean`                                  | Long-tail latencies typical of real packet networks. |
+| `normal`       | `mean`, `stddev`, `min_delay`           | Tight distributions around a target RTT. |
+| `pair_matrix`  | `matrix: {"from,to": delay, ...}`, `default` | Heterogeneous topologies (fast intra-DC, slow inter-DC). |
+| `zero`         | —                                       | Explicit zero-latency (the legacy default). |
+
+`mean_latency` and `duration` in your trace become meaningful as soon
+as `transport_config` is present.
 
 ---
 

@@ -9,6 +9,8 @@ Example::
 
 from __future__ import annotations
 
+import random
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from nest_core.types import AgentId, CorrelationId, TransportCapabilities
@@ -16,6 +18,17 @@ from nest_core.types import AgentId, CorrelationId, TransportCapabilities
 if TYPE_CHECKING:
     from nest_core.sim.clock import VirtualClock
     from nest_core.sim.events import EventQueue
+
+
+#: Callable returning per-hop delay for one delivery.
+#:
+#: ``(rng, sender, receiver) -> delay_seconds``.  The simulator passes its
+#: failure RNG so the result is deterministic under a fixed seed.
+LatencyModel = Callable[[random.Random, AgentId, AgentId], float]
+
+
+def _zero_latency(_rng: random.Random, _s: AgentId, _r: AgentId) -> float:
+    return 0.0
 
 
 class InMemoryTransport:
@@ -39,11 +52,17 @@ class InMemoryTransport:
         event_queue: EventQueue,
         clock: VirtualClock,
         all_agents: list[AgentId] | None = None,
+        latency_model: LatencyModel | None = None,
+        latency_rng: random.Random | None = None,
     ) -> None:
         self._agent_id = agent_id
         self._queue = event_queue
         self._clock = clock
         self.all_agents = all_agents or []
+        self._latency_model: LatencyModel = latency_model or _zero_latency
+        # Reuse the simulator's failure RNG so latency draws stay
+        # deterministic and don't perturb the per-agent RNGs.
+        self._latency_rng: random.Random = latency_rng or random.Random(0)
 
     async def send(
         self,
@@ -59,9 +78,10 @@ class InMemoryTransport:
         """
         from nest_core.sim.events import Event
 
+        delay = max(0.0, float(self._latency_model(self._latency_rng, self._agent_id, to)))
         self._queue.push(
             Event(
-                time=self._clock.now,
+                time=self._clock.now + delay,
                 kind="deliver",
                 agent_id=to,
                 target_id=self._agent_id,

@@ -148,6 +148,11 @@ class ScenarioConfig(BaseModel):
     metrics: list[str] = Field(default_factory=list)
     output: OutputConfig = Field(default_factory=OutputConfig)
     seed: int = 0
+    # Optional per-hop latency configuration for the in-memory transport.
+    # When absent or empty, the bundled transport stays zero-latency for
+    # byte-identical determinism with prior traces.  See
+    # ``nest_plugins_reference.transport.latency`` for the schema.
+    transport_config: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("tier")
     @classmethod
