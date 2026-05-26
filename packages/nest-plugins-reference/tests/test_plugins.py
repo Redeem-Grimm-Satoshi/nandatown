@@ -550,9 +550,7 @@ class TestSemanticMemory:
         h1 = await m1.recall("what price was accepted?", k=4)
         h2 = await m2.recall("what price was accepted?", k=4)
         # Byte-identical results, score-for-score, key-for-key.
-        assert [(h.key, h.value, h.score) for h in h1] == [
-            (h.key, h.value, h.score) for h in h2
-        ]
+        assert [(h.key, h.value, h.score) for h in h1] == [(h.key, h.value, h.score) for h in h2]
 
     @pytest.mark.asyncio
     async def test_recall_min_score_filters_weak_matches(self) -> None:

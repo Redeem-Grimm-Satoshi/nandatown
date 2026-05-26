@@ -390,9 +390,7 @@ class SemanticMemory:
         # collect first. The store is bounded by ``capacity`` so this is
         # O(n) on a small n.
         stale: list[str] = [
-            key
-            for key, entry in self._store.items()
-            if now - entry.written_at >= self._ttl
+            key for key, entry in self._store.items() if now - entry.written_at >= self._ttl
         ]
         for key in stale:
             del self._store[key]
