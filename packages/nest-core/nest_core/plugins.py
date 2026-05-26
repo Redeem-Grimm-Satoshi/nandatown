@@ -23,6 +23,7 @@ _BUILTINS: dict[tuple[str, str], str] = {
     ("registry", "in_memory"): f"{_REF}.registry.in_memory:InMemoryRegistry",
     ("auth", "jwt"): f"{_REF}.auth.jwt_auth:JwtAuth",
     ("trust", "score_average"): f"{_REF}.trust.score_average:ScoreAverageTrust",
+    ("trust", "eigentrust"): f"{_REF}.trust.eigentrust:EigenTrust",
     ("payments", "prepaid_credits"): f"{_REF}.payments.prepaid_credits:PrepaidCredits",
     ("coordination", "contract_net"): f"{_REF}.coordination.contract_net:ContractNet",
     ("negotiation", "alternating_offers"): (
