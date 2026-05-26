@@ -538,13 +538,35 @@ class TestOpenAIProvider:
         assert len(fake.chat.completions.calls) == 1
         call = fake.chat.completions.calls[0]
         assert call["model"] == "gpt-5.5"
-        assert call["temperature"] == 0.0
+        # gpt-5.x models reject explicit temperature kwargs; the provider must
+        # omit the kwarg for these models so the default (1) is used.
+        assert "temperature" not in call
         assert call["response_format"] == {"type": "json_object"}
         # System message is flattened from blocks; user message is verbatim.
         msgs = call["messages"]
         assert msgs[0]["role"] == "system"
         assert "RUBRIC" in msgs[0]["content"]
         assert msgs[1] == {"role": "user", "content": "user content"}
+
+    def test_openai_provider_passes_temperature_for_non_gpt5_models(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # gpt-4o and earlier accept explicit temperature; we send 0.0 for determinism.
+        monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+        provider = OpenAIProvider(model="gpt-4o")
+        fake = _FakeOpenAIClient(
+            json.dumps({"scores": dict.fromkeys(DIMENSIONS, 3), "rationale": "ok."})
+        )
+        provider._client = fake  # pyright: ignore[reportPrivateUsage]
+        asyncio.run(
+            provider.judge(
+                system_blocks=[{"type": "text", "text": "RUBRIC"}],
+                user="user content",
+            )
+        )
+        call = fake.chat.completions.calls[0]
+        assert call["model"] == "gpt-4o"
+        assert call["temperature"] == 0.0
 
     def test_openai_provider_flatten_multi_block_system(
         self, monkeypatch: pytest.MonkeyPatch
