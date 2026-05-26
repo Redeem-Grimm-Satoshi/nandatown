@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+[project]
+name = "nest-marketplace"
+version = "0.1.0"
+description = "NEST hackathon marketplace: data adapter that builds the static JSON consumed by the /hackathon UI."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.scripts]
+nest-marketplace-build = "nest_marketplace.build_data:main"
+
+[project.urls]
+Homepage = "https://github.com/mariagorskikh/nest"
+Repository = "https://github.com/mariagorskikh/nest"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["nest_marketplace"]
