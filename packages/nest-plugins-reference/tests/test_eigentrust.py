@@ -126,8 +126,7 @@ class TestEigenProperties:
         honest_score = (await trust.score(AgentId("honest"))).score
         sybil_score = (await trust.score(AgentId("sybil-target"))).score
         assert honest_score > sybil_score, (
-            f"Sybil clique outranked honest peer: honest={honest_score}, "
-            f"sybil={sybil_score}"
+            f"Sybil clique outranked honest peer: honest={honest_score}, sybil={sybil_score}"
         )
 
     @pytest.mark.asyncio
@@ -150,8 +149,7 @@ class TestEigenProperties:
         score_decay = (await decay.score(AgentId("a"))).score
 
         assert score_decay < score_no_decay, (
-            f"decay did not lower score: no_decay={score_no_decay}, "
-            f"decay={score_decay}"
+            f"decay did not lower score: no_decay={score_no_decay}, decay={score_decay}"
         )
 
     @pytest.mark.asyncio
@@ -202,8 +200,7 @@ class TestDeterminismAndCaching:
             for ev in reports:
                 await trust.report(ev.subject, ev)
             run_scores = {
-                name: (await trust.score(AgentId(name))).score
-                for name in ("a", "b", "c", "seed")
+                name: (await trust.score(AgentId(name))).score for name in ("a", "b", "c", "seed")
             }
             scores.append(run_scores)
         assert scores[0] == scores[1]
