@@ -25,6 +25,7 @@ _BUILTINS: dict[tuple[str, str], str] = {
     ("trust", "score_average"): f"{_REF}.trust.score_average:ScoreAverageTrust",
     ("payments", "prepaid_credits"): f"{_REF}.payments.prepaid_credits:PrepaidCredits",
     ("coordination", "contract_net"): f"{_REF}.coordination.contract_net:ContractNet",
+    ("coordination", "sealed_bid"): f"{_REF}.coordination.sealed_bid:SealedBidAuction",
     ("negotiation", "alternating_offers"): (
         f"{_REF}.negotiation.alternating_offers:AlternatingOffers"
     ),
