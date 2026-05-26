@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import random
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, cast
 
 from nest_core.types import AgentId
 
@@ -237,13 +237,19 @@ def make_latency_model(spec: Mapping[str, Any] | None) -> LatencyModel:
         if not isinstance(raw, Mapping):
             msg = "pair_matrix: 'matrix' must be a mapping of '<from>,<to>' to delay"
             raise ValueError(msg)
+        raw_items = cast("Mapping[Any, Any]", raw)
         parsed: dict[tuple[str, str], float] = {}
-        for key, value in raw.items():
+        for key, value in raw_items.items():
             # YAML can't have tuple keys; accept "a,b" strings or [a, b] lists.
+            parts: list[str]
             if isinstance(key, str):
                 parts = [p.strip() for p in key.split(",")]
-            elif isinstance(key, (list, tuple)) and len(key) == 2:
-                parts = [str(p) for p in key]
+            elif (
+                isinstance(key, (list, tuple))
+                and len(cast("list[Any] | tuple[Any, ...]", key)) == 2
+            ):
+                key_seq = cast("list[Any] | tuple[Any, ...]", key)
+                parts = [str(p) for p in key_seq]
             else:
                 msg = f"pair_matrix: unsupported key {key!r}, use '<from>,<to>' or [from, to]"
                 raise ValueError(msg)

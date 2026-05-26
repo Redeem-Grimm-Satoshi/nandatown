@@ -47,7 +47,9 @@ def _build_latency_model_from_config(
     #     transport_config:
     #       kind: exponential
     #       mean: 0.02
-    spec = raw_latency if isinstance(raw_latency, dict) else transport_config
+    spec: dict[str, Any] = (
+        cast("dict[str, Any]", raw_latency) if isinstance(raw_latency, dict) else transport_config
+    )
     if not spec:
         return None
     try:

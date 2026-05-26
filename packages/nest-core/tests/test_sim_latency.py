@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import statistics
 from pathlib import Path
+from typing import Any
 
 import pytest
 from nest_core.sim import Simulator, StateMachineAgent
@@ -54,11 +55,11 @@ class _Echoer(StateMachineAgent):
             await ctx.send(sender, b"pong")
 
 
-def _read_trace(path: Path) -> list[dict]:
+def _read_trace(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text().splitlines() if line]
 
 
-def _mean_latency(events: list[dict]) -> float:
+def _mean_latency(events: list[dict[str, Any]]) -> float:
     sends: dict[str, float] = {}
     diffs: list[float] = []
     for ev in events:
@@ -111,7 +112,7 @@ async def test_constant_latency_advances_clock(tmp_path: Path) -> None:
     mean = _mean_latency(events)
     # ping -> arrives at 0.01, pong -> arrives at 0.02.  Mean of the two
     # send-to-receive deltas is exactly 0.01.
-    assert mean == pytest.approx(0.01, rel=1e-9)
+    assert mean == pytest.approx(0.01, rel=1e-9)  # pyright: ignore[reportUnknownMemberType]
     # The virtual clock advanced past zero.
     assert sim.clock.now >= 0.01
 
@@ -205,7 +206,7 @@ async def test_pair_matrix_latency(tmp_path: Path) -> None:
             if send_ts is not None:
                 deltas[cid] = ev["ts"] - send_ts
     observed = sorted(v for k, v in deltas.items() if not k.endswith("_send"))
-    assert observed == pytest.approx([0.005, 0.020])
+    assert observed == pytest.approx([0.005, 0.020])  # pyright: ignore[reportUnknownMemberType]
 
 
 # ---------------------------------------------------------------------------

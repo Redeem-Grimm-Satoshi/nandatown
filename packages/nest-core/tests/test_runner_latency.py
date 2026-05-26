@@ -5,17 +5,21 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
-from nest_core.runner import ScenarioRunner, _build_latency_model_from_config
+from nest_core.runner import (
+    ScenarioRunner,
+    _build_latency_model_from_config,  # pyright: ignore[reportPrivateUsage]
+)
 from nest_core.scenario import ScenarioConfig
 
 
-def _events(path: Path) -> list[dict]:
+def _events(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text().splitlines() if line]
 
 
-def _mean_latency(events: list[dict]) -> float:
+def _mean_latency(events: list[dict[str, Any]]) -> float:
     sends: dict[str, float] = {}
     diffs: list[float] = []
     for ev in events:
@@ -34,8 +38,11 @@ def _mean_latency(events: list[dict]) -> float:
 # ---------------------------------------------------------------------------
 
 
-def _mk_config(tmp_path: Path, transport_config: dict | None = None) -> ScenarioConfig:
-    data: dict = {
+def _mk_config(
+    tmp_path: Path,
+    transport_config: dict[str, Any] | None = None,
+) -> ScenarioConfig:
+    data: dict[str, Any] = {
         "name": "latency-rt-test",
         "seed": 7,
         "agents": {
@@ -88,7 +95,7 @@ class TestConstantLatencyViaYaml:
         result = await ScenarioRunner(config).run()
         events = _events(result)
         # Every hop is 0.005, so mean send->receive latency == 0.005.
-        assert _mean_latency(events) == pytest.approx(0.005, abs=1e-9)
+        assert _mean_latency(events) == pytest.approx(0.005, abs=1e-9)  # pyright: ignore[reportUnknownMemberType]
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +133,7 @@ class TestNestedLatencyBlock:
             transport_config={"latency": {"kind": "constant", "mean": 0.002}},
         )
         result = await ScenarioRunner(config).run()
-        assert _mean_latency(_events(result)) == pytest.approx(0.002, abs=1e-9)
+        assert _mean_latency(_events(result)) == pytest.approx(0.002, abs=1e-9)  # pyright: ignore[reportUnknownMemberType]
 
 
 # ---------------------------------------------------------------------------

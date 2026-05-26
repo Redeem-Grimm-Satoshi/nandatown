@@ -9,6 +9,7 @@ import statistics
 import pytest
 from nest_core.types import AgentId
 from nest_plugins_reference.transport.latency import (
+    LatencyModel,
     constant_latency,
     exponential_latency,
     make_latency_model,
@@ -24,7 +25,7 @@ A2 = AgentId("a2")
 A3 = AgentId("a3")
 
 
-def _samples(model, n: int = 10_000, seed: int = 1) -> list[float]:
+def _samples(model: LatencyModel, n: int = 10_000, seed: int = 1) -> list[float]:
     rng = random.Random(seed)
     return [model(rng, A1, A2) for _ in range(n)]
 
