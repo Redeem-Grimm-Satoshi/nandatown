@@ -56,11 +56,13 @@ def _bids_of(rnd: Round) -> list[tuple[str, int]]:
     raw = rnd.metadata.get("bids", [])
     out: list[tuple[str, int]] = []
     if isinstance(raw, list):
-        for b in raw:
+        raw_items: list[object] = raw  # type: ignore[assignment]
+        for b in raw_items:
             if isinstance(b, dict):
-                bidder = str(b.get("bidder", ""))
+                b_typed: dict[object, object] = b  # type: ignore[assignment]
+                bidder = str(b_typed.get("bidder", ""))
                 try:
-                    amount = int(str(b.get("amount", 0)))
+                    amount = int(str(b_typed.get("amount", 0)))
                 except (TypeError, ValueError):
                     continue
                 out.append((bidder, amount))
@@ -96,10 +98,7 @@ def check_allocative_efficiency(rnd: Round, outcome: Outcome) -> ValidationResul
         return ValidationResult(
             "allocative_efficiency",
             passed=False,
-            detail=(
-                f"no winner declared but top bid {top_amount} "
-                f"clears reserve {reserve}"
-            ),
+            detail=(f"no winner declared but top bid {top_amount} clears reserve {reserve}"),
         )
 
     winner = str(outcome.winner)
@@ -114,10 +113,7 @@ def check_allocative_efficiency(rnd: Round, outcome: Outcome) -> ValidationResul
         return ValidationResult(
             "allocative_efficiency",
             passed=False,
-            detail=(
-                f"winner {winner!r} bid {winner_bid}, "
-                f"highest bid was {top_amount}"
-            ),
+            detail=(f"winner {winner!r} bid {winner_bid}, highest bid was {top_amount}"),
         )
     return ValidationResult(
         "allocative_efficiency",
@@ -193,13 +189,9 @@ def check_seller_reserve(rnd: Round, outcome: Outcome) -> ValidationResult:
                 passed=False,
                 detail=f"no winner but payment is {payment}",
             )
-        return ValidationResult(
-            "seller_reserve", passed=True, detail="no winner, no payment"
-        )
+        return ValidationResult("seller_reserve", passed=True, detail="no winner, no payment")
     if reserve_raw is None:
-        return ValidationResult(
-            "seller_reserve", passed=True, detail="no reserve set"
-        )
+        return ValidationResult("seller_reserve", passed=True, detail="no reserve set")
     reserve = int(str(reserve_raw))
     if payment < reserve:
         return ValidationResult(
@@ -231,13 +223,9 @@ def check_vickrey_payment(rnd: Round, outcome: Outcome) -> ValidationResult:
             detail=f"mechanism={mechanism!r}, not vickrey",
         )
     if outcome.winner is None:
-        return ValidationResult(
-            "vickrey_payment", passed=True, detail="no winner"
-        )
+        return ValidationResult("vickrey_payment", passed=True, detail="no winner")
 
-    bids = sorted(
-        (amt for _, amt in _bids_of(rnd)), reverse=True
-    )
+    bids = sorted((amt for _, amt in _bids_of(rnd)), reverse=True)
     if not bids:
         return ValidationResult(
             "vickrey_payment",
@@ -262,8 +250,7 @@ def check_vickrey_payment(rnd: Round, outcome: Outcome) -> ValidationResult:
             "vickrey_payment",
             passed=False,
             detail=(
-                f"payment={payment} but expected max(reserve={floor}, "
-                f"second={second})={expected}"
+                f"payment={payment} but expected max(reserve={floor}, second={second})={expected}"
             ),
         )
     return ValidationResult(
@@ -290,9 +277,7 @@ def check_first_price_payment(rnd: Round, outcome: Outcome) -> ValidationResult:
             detail=f"mechanism={mechanism!r}, not first_price",
         )
     if outcome.winner is None:
-        return ValidationResult(
-            "first_price_payment", passed=True, detail="no winner"
-        )
+        return ValidationResult("first_price_payment", passed=True, detail="no winner")
     winning_bid_raw = outcome.metadata.get("winning_bid")
     payment_raw = outcome.metadata.get("payment", 0)
     try:
@@ -333,24 +318,23 @@ def check_single_winner(rnd: Round, outcome: Outcome) -> ValidationResult:
     """
     tied = outcome.metadata.get("tied_top_bidders", [])
     if outcome.winner is None:
-        return ValidationResult(
-            "single_winner", passed=True, detail="no winner"
-        )
-    if isinstance(tied, list) and len(tied) > 1:
-        # A tied top is allowed *if* the chosen winner is the
-        # deterministic lexicographic minimum — that is the documented
-        # tie-break. Otherwise flag it.
-        chosen = str(outcome.winner)
-        expected = min(str(t) for t in tied)
-        if chosen != expected:
-            return ValidationResult(
-                "single_winner",
-                passed=False,
-                detail=(
-                    f"tied top {tied!r} but winner {chosen!r} "
-                    f"!= deterministic min {expected!r}"
-                ),
-            )
+        return ValidationResult("single_winner", passed=True, detail="no winner")
+    if isinstance(tied, list):
+        tied_items: list[object] = tied  # type: ignore[assignment]
+        if len(tied_items) > 1:
+            # A tied top is allowed *if* the chosen winner is the
+            # deterministic lexicographic minimum — that is the documented
+            # tie-break. Otherwise flag it.
+            chosen = str(outcome.winner)
+            expected = min(str(t) for t in tied_items)
+            if chosen != expected:
+                return ValidationResult(
+                    "single_winner",
+                    passed=False,
+                    detail=(
+                        f"tied top {tied!r} but winner {chosen!r} != deterministic min {expected!r}"
+                    ),
+                )
     return ValidationResult(
         "single_winner",
         passed=True,

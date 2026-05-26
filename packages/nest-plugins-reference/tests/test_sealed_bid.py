@@ -65,7 +65,7 @@ class TestConstruction:
         # Read it back via the round metadata to keep the field private.
         # The mechanism is what propose() stamps onto the round.
         # (We verify in a separate test that propose returns it.)
-        assert coord._mechanism == "vickrey"  # noqa: SLF001 — internal smoke
+        assert coord._mechanism == "vickrey"  # type: ignore[reportPrivateUsage] # noqa: SLF001 — internal smoke
 
     def test_unknown_mechanism_rejected(self) -> None:
         with pytest.raises(ValueError, match="unknown mechanism"):
@@ -374,28 +374,20 @@ class TestRandomSwarms:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("mechanism", ["vickrey", "first_price"])
-    async def test_validators_hold_for_random_swarms(
-        self, mechanism: str
-    ) -> None:
+    async def test_validators_hold_for_random_swarms(self, mechanism: str) -> None:
         import random
 
         rng = random.Random(20260526)
         for trial in range(50):
             n = rng.randint(0, 15)
             reserve = rng.choice([None, 0, 5, 25, 80])
-            auct, bidders = _make_swarm(
-                n, mechanism=mechanism, reserve=reserve
-            )
-            rnd = await auct.propose(
-                Task(id=f"t-{trial}", description="job")
-            )
+            auct, bidders = _make_swarm(n, mechanism=mechanism, reserve=reserve)
+            rnd = await auct.propose(Task(id=f"t-{trial}", description="job"))
             for b in bidders:
                 await b.participate(rnd, value=Money(amount=rng.randint(0, 100)))
             out = await auct.resolve(rnd)
             for r in check_round(rnd, out):
-                assert r.passed, (
-                    f"trial={trial} mechanism={mechanism} {r.name}: {r.detail}"
-                )
+                assert r.passed, f"trial={trial} mechanism={mechanism} {r.name}: {r.detail}"
 
 
 # ---------------------------------------------------------------------------

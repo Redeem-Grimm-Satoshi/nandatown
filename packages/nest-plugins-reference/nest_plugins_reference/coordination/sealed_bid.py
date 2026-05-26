@@ -120,10 +120,7 @@ class SealedBidAuction:
         reserve: Money | None = None,
     ) -> None:
         if mechanism not in _VALID_MECHANISMS:
-            msg = (
-                f"unknown mechanism {mechanism!r}; "
-                f"expected one of {sorted(_VALID_MECHANISMS)}"
-            )
+            msg = f"unknown mechanism {mechanism!r}; expected one of {sorted(_VALID_MECHANISMS)}"
             raise ValueError(msg)
         if reserve is not None and reserve.amount < 0:
             msg = f"reserve must be non-negative, got {reserve.amount}"
@@ -190,10 +187,7 @@ class SealedBidAuction:
             await coord.participate(rnd, value=Money(amount=100))
         """
         if round.metadata.get("status") != STATUS_OPEN:
-            msg = (
-                f"cannot bid on round {round.id!r}: "
-                f"status is {round.metadata.get('status')!r}"
-            )
+            msg = f"cannot bid on round {round.id!r}: status is {round.metadata.get('status')!r}"
             raise SealedBidAuctionError(msg)
 
         bid_amount = value if value is not None else Money(amount=1)
@@ -212,10 +206,7 @@ class SealedBidAuction:
         # indicates a buggy agent.
         for existing in bids:
             if existing.get("bidder") == str(self._agent_id):
-                msg = (
-                    f"agent {self._agent_id!r} already bid on round "
-                    f"{round.id!r}"
-                )
+                msg = f"agent {self._agent_id!r} already bid on round {round.id!r}"
                 raise SealedBidAuctionError(msg)
         bids.append(
             {
@@ -252,7 +243,9 @@ class SealedBidAuction:
             # even if the bid list is mutated later.
             stored = round.metadata.get("outcome")
             if isinstance(stored, dict):
-                return _rehydrate_outcome(round, stored)
+                stored_dict: dict[object, object] = stored  # type: ignore[assignment]
+                stored_typed: dict[str, object] = {str(k): v for k, v in stored_dict.items()}
+                return _rehydrate_outcome(round, stored_typed)
 
         if round.metadata.get("status") == STATUS_COMMITTED:
             msg = f"round {round.id!r} already committed"
@@ -278,9 +271,7 @@ class SealedBidAuction:
         if bids_sorted:
             top_amount = int(str(bids_sorted[0]["amount"]))
             tied_top = [
-                str(b["bidder"])
-                for b in bids_sorted
-                if int(str(b["amount"])) == top_amount
+                str(b["bidder"]) for b in bids_sorted if int(str(b["amount"])) == top_amount
             ]
             if reserve_amount is None or top_amount >= reserve_amount:
                 cleared = True
@@ -301,9 +292,7 @@ class SealedBidAuction:
             "reserve": reserve_amount,
             "cleared": cleared,
             "payment": payment,
-            "winning_bid": (
-                int(str(bids_sorted[0]["amount"])) if bids_sorted else None
-            ),
+            "winning_bid": (int(str(bids_sorted[0]["amount"])) if bids_sorted else None),
             "winner": (str(winner) if winner is not None else None),
             "runner_up": runner_up,
             "tied_top_bidders": tied_top,
