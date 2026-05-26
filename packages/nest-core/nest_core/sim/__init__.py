@@ -11,6 +11,8 @@ from nest_core.sim.agent import StateMachineAgent as StateMachineAgent
 from nest_core.sim.clock import VirtualClock as VirtualClock
 from nest_core.sim.events import Event as Event
 from nest_core.sim.events import EventQueue as EventQueue
+from nest_core.sim.network import NetworkModel as NetworkModel
+from nest_core.sim.network import ZeroLatencyNetworkModel as ZeroLatencyNetworkModel
 from nest_core.sim.simulator import Simulator as Simulator
 from nest_core.sim.trace import TraceWriter as TraceWriter
 from nest_core.sim.transport import InMemoryTransport as InMemoryTransport
@@ -20,8 +22,10 @@ __all__ = [
     "Event",
     "EventQueue",
     "InMemoryTransport",
+    "NetworkModel",
     "Simulator",
     "StateMachineAgent",
     "TraceWriter",
     "VirtualClock",
+    "ZeroLatencyNetworkModel",
 ]

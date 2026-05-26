@@ -22,6 +22,7 @@ from typing import Any
 from nest_core.sim.agent import AgentContext, StateMachineAgent
 from nest_core.sim.clock import VirtualClock
 from nest_core.sim.events import Event, EventQueue
+from nest_core.sim.network import NetworkModel, ZeroLatencyNetworkModel
 from nest_core.sim.trace import TraceWriter
 from nest_core.sim.transport import InMemoryTransport
 from nest_core.types import AgentId, CorrelationId
@@ -99,7 +100,20 @@ class _SimAgentContext:
                     "corr": str(cid),
                 }
             )
-        await self._transport.send(to, payload, correlation_id=cid)
+        _, accepted = await self._transport.send(to, payload, correlation_id=cid)
+        if not accepted and self._trace:
+            self._trace.record(
+                {
+                    "ts": self._clock.now,
+                    "agent": str(to),
+                    "kind": "dropped",
+                    "from": str(self._agent_id),
+                    "size": len(payload),
+                    "msg": payload.decode("utf-8", errors="replace"),
+                    "corr": str(cid),
+                    "reason": "network",
+                }
+            )
 
     async def broadcast(self, payload: bytes) -> None:
         cid = self._corr.next()
@@ -114,7 +128,22 @@ class _SimAgentContext:
                     "corr": str(cid),
                 }
             )
-        await self._transport.broadcast(payload, correlation_id=cid)
+        results = await self._transport.broadcast(payload, correlation_id=cid)
+        if self._trace:
+            for target, _t, accepted in results:
+                if not accepted:
+                    self._trace.record(
+                        {
+                            "ts": self._clock.now,
+                            "agent": str(target),
+                            "kind": "dropped",
+                            "from": str(self._agent_id),
+                            "size": len(payload),
+                            "msg": payload.decode("utf-8", errors="replace"),
+                            "corr": str(cid),
+                            "reason": "network",
+                        }
+                    )
 
     async def schedule(self, delay: float, payload: bytes) -> None:
         self._queue.push(
@@ -150,6 +179,7 @@ class Simulator:
         byzantine_fraction: float = 0.0,
         partition_groups: list[list[str]] | None = None,
         plugins: dict[str, Any] | None = None,
+        network_model: NetworkModel | None = None,
     ) -> None:
         if not 0.0 <= message_drop_rate <= 1.0:
             msg = f"message_drop_rate must be between 0 and 1: {message_drop_rate}"
@@ -175,6 +205,10 @@ class Simulator:
         self._byzantine_agents: set[AgentId] = set()
         self._partition_map: dict[AgentId, int] = {}
         self._failure_rng = random.Random(self._master_rng.randint(0, 2**63))
+        # Separate RNG for the network model so byzantine/partition draws are
+        # not perturbed by per-hop latency sampling.
+        self._network_rng = random.Random(self._master_rng.randint(0, 2**63))
+        self._network_model: NetworkModel = network_model or ZeroLatencyNetworkModel()
         self._plugins: dict[str, Any] = plugins or {}
         self._agent_plugins: dict[AgentId, dict[str, Any]] = {}
 
@@ -227,7 +261,14 @@ class Simulator:
         """
         agent_rng = random.Random(self._master_rng.randint(0, 2**63))
         all_ids = [aid for aid in self._agents]
-        transport = InMemoryTransport(agent_id, self._queue, self._clock, all_ids)
+        transport = InMemoryTransport(
+            agent_id,
+            self._queue,
+            self._clock,
+            all_ids,
+            network_model=self._network_model,
+            network_rng=self._network_rng,
+        )
         self._agents[agent_id] = _AgentSlot(
             agent=agent,
             transport=transport,
@@ -250,17 +291,32 @@ class Simulator:
                     if aid in self._agents:
                         self._partition_map[aid] = group_idx
 
-    def _should_drop(self, sender: AgentId, target: AgentId) -> bool:
+    def _drop_reason(self, sender: AgentId, target: AgentId) -> str | None:
+        """Return a reason string if the message should be dropped, else None.
+
+        Failure-injection drop and network-partition drop are distinguished
+        in the trace so downstream metrics can attribute them correctly.
+        """
         if self._message_drop_rate > 0 and self._failure_rng.random() < self._message_drop_rate:
-            return True
+            return "failure_injection"
 
         if self._partition_map:
             s_group = self._partition_map.get(sender, -1)
             t_group = self._partition_map.get(target, -2)
             if s_group >= 0 and t_group >= 0 and s_group != t_group:
-                return True
+                return "partition"
 
-        return False
+        return None
+
+    def _should_drop(self, sender: AgentId, target: AgentId) -> bool:
+        """Backwards-compatible alias for ``_drop_reason() is not None``.
+
+        Example::
+
+            if sim._should_drop(sender, target):
+                ...
+        """
+        return self._drop_reason(sender, target) is not None
 
     async def run(self, max_ticks: int = 100_000, max_time: float | None = None) -> None:
         """Run the simulation until events are exhausted or limits are reached.
@@ -314,7 +370,8 @@ class Simulator:
                 if target_slot is None:
                     continue
 
-                if self._should_drop(event.target_id, event.agent_id):
+                drop_reason = self._drop_reason(event.target_id, event.agent_id)
+                if drop_reason is not None:
                     self._dropped_count += 1
                     if self._trace:
                         drop_rec: dict[str, Any] = {
@@ -324,6 +381,7 @@ class Simulator:
                             "from": str(event.target_id),
                             "size": len(event.payload),
                             "msg": event.payload.decode("utf-8", errors="replace"),
+                            "reason": drop_reason,
                         }
                         if event.correlation_id is not None:
                             drop_rec["corr"] = str(event.correlation_id)
@@ -367,6 +425,31 @@ class Simulator:
 
         if self._trace:
             self._trace.close()
+
+    @property
+    def network_model(self) -> NetworkModel:
+        """The currently installed network model.
+
+        Example::
+
+            sim.network_model
+        """
+        return self._network_model
+
+    def set_network_model(self, model: NetworkModel) -> None:
+        """Install a network model after construction.
+
+        Must be called before :meth:`add_agent` for new agents to pick it
+        up; existing agents are also updated so it is safe to call right
+        before :meth:`run`.
+
+        Example::
+
+            sim.set_network_model(RealisticNetwork(...))
+        """
+        self._network_model = model
+        for slot in self._agents.values():
+            slot.transport.set_network(model, self._network_rng)
 
     def set_agent_plugins(self, agent_id: AgentId, overrides: dict[str, Any]) -> None:
         """Set per-agent plugin overrides (merged on top of shared plugins).
