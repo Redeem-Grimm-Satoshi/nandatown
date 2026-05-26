@@ -1,9 +1,13 @@
 # Judging
 
-This is the rubric a separate judge-panel track uses to score every
-hackathon PR. There is no `scripts/judge/rubric.md` in this repo yet;
-when that track lands its rubric, this document defers to it. Until
-then, the rubric below *is* the rubric.
+The canonical rubric the judge panel actually scores against lives at
+[`scripts/judge/rubric.md`](../../scripts/judge/rubric.md). That file is
+the source of truth — if anything in this document drifts from it,
+trust the rubric, not this page, and file an issue so we can fix the
+drift.
+
+This page is the participant-facing summary of how scoring works in
+practice.
 
 ## How it works
 
@@ -11,55 +15,68 @@ then, the rubric below *is* the rubric.
    `uv run ruff format --check .`, `uv run pyright`, and
    `uv run pytest -v`. **Any non-zero exit knocks you out of contention
    until you fix it.** The judge panel does not score broken PRs.
-2. Once CI is green, the judge panel reads the diff, runs your
-   scenarios under the seed bank (seeds `42`, `7`, `1337`, `0xdeadbeef`,
-   plus 6 random seeds chosen at judging time), and scores you on six
-   dimensions.
-3. The judge panel then **cross-runs every other participant's
-   adversarial validator against your plugin** for the same layer. If
-   your trust plugin survives 4 of the 5 adversarial validators
-   shipped against it, you get partial credit on novelty. If your
-   plugin fails its *own* adversarial validator, you get a zero on
-   correctness — no exceptions.
-4. The leaderboard is the sum of the six dimension scores, normalized
-   to 100. Ties go to the earlier PR.
+2. Once CI is green, the judge panel
+   ([`scripts/judge/judge_pr.py`](../../scripts/judge/judge_pr.py))
+   reads the PR body, the diff, and the checks summary, and runs N
+   independent LLM judges (default 3) against the rubric. Each judge
+   returns a structured JSON verdict with a per-dimension integer score
+   and a short rationale.
+3. The aggregator takes the per-dimension median across judges, and the
+   headline "total" is `median_low` of the per-judge totals — both are
+   written verbatim to [`docs/hackathon/scores.json`](./scores.json),
+   along with a deterministic three-sentence consensus narrative.
+4. The leaderboard sort key is that headline total (the `median` field
+   in `scores.json`, an integer-valued float in `[6, 30]`). Ties go to
+   the earlier PR.
 
 ## The six dimensions
 
-Each is scored 0-10. Final score is the sum divided by 6, rounded to
-one decimal.
+Each dimension is scored as an integer in `[1, 5]`. The headline total
+is the sum of the dimension medians across judges and therefore lives
+in `[6, 30]`. For the full anchor descriptions at 1, 3, and 5 see
+[`scripts/judge/rubric.md`](../../scripts/judge/rubric.md); this table
+is a one-line summary.
 
-| # | Dimension | What it measures | Hard floor |
-|---|---|---|---|
-| 1 | **Correctness** | Plugin meets its problem's success criteria. Adversarial validator passes against the new plugin, fails against the reference plugin. No flaky tests. No hidden global state. Same seed → byte-identical trace. | If your own adversarial validator fails against your plugin, score = 0. |
-| 2 | **Test rigor** | Unit tests cover error paths and invariants, not just the happy path. At least one property-based or randomized-sweep test. Tests fail when the underlying invariant is broken (verify by mutation-testing — flip a `<` to `<=` and at least one test must fail). | If `pytest` passes but mutating any non-trivial line in the plugin doesn't break any test, score ≤ 3. |
-| 3 | **API fit** | Plugin satisfies the `Protocol` for its layer structurally (e.g. `isinstance(plugin, Memory)` is True for memory plugins). Public method signatures match the layer interface in [`packages/nest-core/nest_core/layers/`](../../packages/nest-core/nest_core/layers/). Drop-in usable in a scenario YAML via `layers.<layer>: <name>`. Plugin is registered in [`nest_core/plugins.py`](../../packages/nest-core/nest_core/plugins.py). | If your plugin can't be selected by name in a scenario YAML, score ≤ 2. |
-| 4 | **Docs quality** | Module docstring explains *why* the plugin exists, not just what. Every public method has an `Example::` block (NEST docstring style — see reference plugins). Updated [`docs/layers/<your-layer>.md`](../../docs/layers/). README table mentions the plugin if it ships as a built-in. Adversarial validator's docstring explains what attack it catches. | If a new contributor cannot use your plugin from the docs alone, score ≤ 4. |
-| 5 | **Novelty** | The plugin is materially different from the default reference plugin *and* from every other plugin that already exists in this repo at the time of judging. Score is *highest* when your plugin's adversarial validator catches an attack class no other plugin in this layer catches. | If the diff is dominated by renaming `score_average` to something new, score = 0. |
-| 6 | **Persona fidelity** | Your handle declares a persona (e.g. `stanford-ml-phd`, `coinbase-crypto`, `cybersec-blackhat`). The PR's risk model, test coverage emphasis, and code style should match. A "coinbase-crypto" PR with no conservation-of-funds property test loses persona points. A "linux-kernel" PR that doesn't think about ordering and queueing loses persona points. | If the persona is obviously absent from the work, score ≤ 5. |
+| # | Dimension          | What it measures (1-5 scale)                                                                                                                                                                                          |
+|---|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1 | **correctness**       | Does the code do what the PR claims; are obvious bugs and edge cases handled; does the algorithm match the cited spec.                                                                                                |
+| 2 | **test_rigor**        | Coverage of failure modes, property-based vs example-only, adversarial / byzantine inputs. Tests should catch the bugs in score-1 territory.                                                                          |
+| 3 | **api_fit**           | Implements the layer Protocol exactly; entry point wired in `pyproject.toml`; uses `nest_core` types; idiomatic to NEST (SPDX header, `from __future__ import annotations`, `Example::` blocks).                       |
+| 4 | **docs_quality**      | PR body covers motivation, design, tradeoffs, and a runnable verification snippet; every public function/class has a docstring with an `Example::` block; scenario YAML or runnable command included where relevant.   |
+| 5 | **novelty**           | Materially different from the reference plugin and from already-merged peers; bonus for non-obvious invariant checks, novel layer compositions, benchmarks that surface hidden properties.                            |
+| 6 | **persona_fidelity**  | The persona declared in the branch / PR title is legible in the code itself — risk model, test emphasis, idioms — not just a label on a generic submission.                                                            |
+
+Scoring discipline (from the rubric):
+
+- Score the artifact *as it stands in this PR*, not what it could become.
+- "Textbook restatement" is not a sin if the textbook is right; it just
+  caps novelty. Correctness, fit, and tests are judged on their own.
+- Do not penalize a submission for being small if it is correct,
+  tested, and idiomatic. Do not reward a submission for being large
+  if the bulk is filler.
+- If a judge can't tell from the diff (e.g., tests live in a file the
+  diff truncates), they say so in their rationale and score
+  conservatively (3 = "can't fully verify but no red flags").
 
 ## Scoreboard
 
-The scoreboard is regenerated after every merge and published at
-`./scoreboard.md` (will appear on `main` once the judge-panel track
-lands). Columns: handle, problem picked, layer, six dimension scores,
-total, time-to-PR. The leaderboard is monotone: a later PR cannot
-demote an earlier one — but adversarial validators from later PRs
-*can* lower an earlier plugin's correctness score if they catch a
-real bug. Bring your fixes back in a follow-up PR if that happens; we
-will re-judge.
+The scoreboard is regenerated after every merge by
+[`scripts/judge/run_all.py`](../../scripts/judge/run_all.py) and
+published at [`docs/hackathon/scores.json`](./scores.json). Each
+submission entry carries the per-dimension medians, the headline
+`median` total (`[6, 30]`), the `consensus` narrative, and per-judge
+verdicts. The `/hackathon` marketplace UI in the dashboard reads from
+this file via the marketplace adapter. The leaderboard is monotone: a
+later PR cannot demote an earlier one.
 
 ## Anti-gaming
 
-- **No "trivial validator" gaming.** An adversarial validator that
-  always passes (or always fails) earns the participant who shipped it
-  a zero on test rigor.
-- **No "judge the judges" PRs.** Modifying this document, the rubric,
-  the seed bank, or the scoreboard is out of scope for hackathon PRs
-  and will be reverted on merge.
-- **No proprietary tricks.** If your plugin needs `OPENAI_API_KEY` to
-  run, declare it in the PR description and provide a deterministic
-  mock fallback. Tier 1 must remain deterministic.
+- **No "judge the judges" PRs.** Modifying the rubric, the seed bank,
+  or the scoreboard JSON itself is out of scope for hackathon PRs and
+  will be reverted on merge.
+- **No proprietary tricks.** If your plugin needs `OPENAI_API_KEY` or
+  any other secret to run, declare it in the PR description and provide
+  a deterministic mock fallback. Tier 1 must remain deterministic.
 
 If something here is ambiguous, file an issue and ask. We would rather
 be explicit than catch you out on a technicality.
