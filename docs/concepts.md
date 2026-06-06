@@ -1,15 +1,15 @@
 # Concepts
 
-NEST is a **testing rig for agent protocols**. You bring a protocol —
+Nanda Town is a **testing rig for agent protocols**. You bring a protocol —
 payments, identity, coordination, trust, anything a swarm of agents has
-to agree on — and NEST gives you the rest of the stack, a scenario to
+to agree on — and Nanda Town gives you the rest of the stack, a scenario to
 exercise it, and a trace you can validate.
 
 This document explains the pieces that make that work.
 
 ## The 12 layers
 
-NEST decomposes the agent stack into 12 Python `Protocol`s (structural
+Nanda Town decomposes the agent stack into 12 Python `Protocol`s (structural
 typing — no inheritance required). Every scenario picks one
 implementation per layer.
 
@@ -61,7 +61,7 @@ schema. The seven scenarios bundled with `nest-core` are:
 ## Plugins
 
 A plugin is a Python package that implements one of the 12 layer
-interfaces. NEST discovers plugins via `importlib.metadata` entry points
+interfaces. Nanda Town discovers plugins via `importlib.metadata` entry points
 under the group `nest.plugins.<layer>`:
 
 ```toml

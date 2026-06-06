@@ -1,8 +1,8 @@
 # nest-plugins-reference
 
-NEST reference plugins: default implementations for all 12 layers
+Nanda Town reference plugins: default implementations for all 12 layers
 
-Part of [NEST](https://github.com/mariagorskikh/nest) (Network Environment for Swarm Testing), built at MIT Media Lab.
+Part of [Nanda Town](https://github.com/mariagorskikh/nest), built at MIT Media Lab.
 
 ## Installation
 

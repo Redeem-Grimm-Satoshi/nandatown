@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Agent template management for NEST shell agents.
+"""Agent template management for Nanda Town shell agents.
 
 Templates are YAML files that define how a Tier 2 (LLM-backed) agent behaves.
 Each template specifies the system prompt, provider, model, and behavior

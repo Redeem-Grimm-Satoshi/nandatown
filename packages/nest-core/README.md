@@ -1,8 +1,8 @@
 # nest-core
 
-NEST core engine: layer interfaces, runtime, event loop, and simulator
+Nanda Town core engine: layer interfaces, runtime, event loop, and simulator
 
-Part of [NEST](https://github.com/mariagorskikh/nest) (Network Environment for Swarm Testing), built at MIT Media Lab.
+Part of [Nanda Town](https://github.com/mariagorskikh/nest), built at MIT Media Lab.
 
 ## Installation
 

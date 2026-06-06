@@ -331,26 +331,27 @@ export default function DocsPage() {
           {/* Overview */}
           <Section id="overview" title="Overview">
             <p className="mb-5 text-[1.05rem] leading-[1.7] text-ink-500">
-              NEST (Network Environment for Swarm Testing) is a sandbox for
-              testing how AI agents interact with each other. You define a
-              scenario in YAML &mdash; agents, roles, protocol layers, failure
-              conditions &mdash; and NEST runs the simulation, recording every
-              message in a JSONL trace you can inspect and replay.
+              Nanda Town is a sandbox for testing how AI agents talk to each
+              other. Think of it like a flight simulator, but for agents. You
+              write a scenario in a YAML file &mdash; who the agents are, what
+              roles they play, which rules they follow, and what can go wrong.
+              Nanda Town runs it and saves every message to a JSONL file you
+              can read back or replay later.
             </p>
             <p className="mb-5 text-[1.05rem] leading-[1.7] text-ink-500">
-              NEST is an open initiative by Project NANDA. It is
-              open-source research software (Apache 2.0).
+              Nanda Town is an open initiative by Project NANDA. It is
+              free, open-source research software (Apache 2.0).
             </p>
 
             <div className="mb-8 rounded-2xl border border-rust/30 bg-rust/5 p-5">
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-rust mb-2">
-                How NEST runs
+                How Nanda Town runs
               </p>
               <p className="text-[0.95rem] leading-[1.65] text-ink-600">
-                NEST is a <strong className="text-ink-900">Python CLI you install on your own machine</strong>. The simulator runs locally and writes a JSONL trace to disk. This dashboard
-                shows reference docs, pre-recorded example traces in the
-                Visualizer, and the Experiments gallery &mdash; but it does
-                not execute scenarios in your browser. Use the{' '}
+                Nanda Town is a <strong className="text-ink-900">Python tool you install on your own computer</strong>. It runs on your machine and saves a JSONL file to disk. This website
+                only shows the docs, some ready-made example runs in the
+                Visualizer, and the Experiments gallery. It does
+                not run scenarios in your browser. Follow the{' '}
                 <a href="#installation" className="text-rust hover:text-rust/80 underline underline-offset-2">
                   Installation
                 </a>{' '}
@@ -360,10 +361,10 @@ export default function DocsPage() {
 
             <div className="grid gap-3 sm:grid-cols-2">
               {[
-                { title: 'Researchers', desc: 'Study emergent behavior, coordination failures, and trust dynamics with full observability.' },
-                { title: 'Protocol designers', desc: 'Stress-test your agent protocol with configurable failure injection and deterministic replay.' },
-                { title: 'Developers', desc: 'Build and debug multi-agent systems with JSONL traces, metrics, and HTML reports.' },
-                { title: 'Students', desc: 'Learn about agent coordination, game theory, and multi-agent interaction hands-on.' },
+                { title: 'Researchers', desc: 'Watch how agents behave, where they get stuck or disagree, and how trust builds up. You can see everything that happens.' },
+                { title: 'Protocol designers', desc: 'Test your agent rules hard. Turn on failures on purpose, and replay any run to get the same result every time.' },
+                { title: 'Developers', desc: 'Build and fix multi-agent systems using JSONL files, metrics, and HTML reports.' },
+                { title: 'Students', desc: 'Learn by doing: how agents work together, simple game theory, and how agents interact.' },
               ].map((card) => (
                 <div key={card.title} className="rounded-xl bg-cream-200 p-6">
                   <p className="font-display text-[1.25rem] text-ink-900 leading-tight">
@@ -382,9 +383,9 @@ export default function DocsPage() {
           {/* Tiers */}
           <Section id="tiers" title="Tier 1 vs Tier 2">
             <p className="mb-8 text-[1.05rem] leading-[1.7] text-ink-500">
-              NEST has two simulation tiers. They share the same scenario format,
-              the same twelve protocol layers, and the same trace output &mdash;
-              they differ in what drives agent decisions.
+              Nanda Town has two ways to run. Both use the same scenario file,
+              the same twelve layers, and the same trace file. The only
+              difference is how the agents make their choices.
             </p>
 
             <div className="grid gap-5 md:grid-cols-2">
@@ -395,22 +396,22 @@ export default function DocsPage() {
                     Tier 01
                   </p>
                   <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-rust">
-                    Deterministic
+                    Same every time
                   </span>
                 </div>
                 <h3 className="mt-4 font-display text-[1.7rem] leading-tight text-ink-900">
-                  State-machine agents.
+                  Scripted agents.
                 </h3>
                 <p className="mt-3 text-[0.95rem] leading-[1.6] text-ink-500">
-                  Agents are state machines with hard-coded rules. Same seed
-                  produces an identical trace, every time.
+                  Agents follow fixed rules you set in advance. Use the same
+                  seed number and you get the exact same run, every time.
                 </p>
                 <ul className="mt-6 space-y-2.5 text-[0.92rem] text-ink-500">
                   {[
-                    ['Reproducible.', 'Same seed produces identical output, bit-for-bit.'],
-                    ['Fast.', '10,000+ agents on a laptop, sub-second runs.'],
+                    ['Repeatable.', 'Same seed gives the exact same result, every time.'],
+                    ['Fast.', '10,000+ agents on a laptop, runs in under a second.'],
                     ['Free.', 'No API keys, no internet, no cost per run.'],
-                    ['Isolates protocol logic.', 'When something fails, it is the protocol, not the LLM.'],
+                    ['Tests the rules, not the AI.', 'If something breaks, you know it is the rules, not the AI model.'],
                   ].map(([head, body]) => (
                     <li key={head} className="flex gap-2.5">
                       <span className="text-rust shrink-0 mt-1 leading-none">·</span>
@@ -422,7 +423,7 @@ export default function DocsPage() {
                   ))}
                   <li className="flex gap-2.5">
                     <span className="text-ink-300 shrink-0 mt-1 leading-none">·</span>
-                    <span>Agents follow fixed rules; no creativity or adaptation.</span>
+                    <span>Agents only follow the rules you set. They can not think or adapt.</span>
                   </li>
                 </ul>
 
@@ -431,10 +432,10 @@ export default function DocsPage() {
                     Use Tier 1 to
                   </p>
                   <ul className="mt-3 space-y-1.5 text-[0.88rem] text-ink-500">
-                    <li>— Validate protocol correctness before adding LLMs</li>
-                    <li>— Run large-scale (1000+) simulations quickly</li>
-                    <li>— Reproduce bugs deterministically</li>
-                    <li>— Test failure injection (message drops, partitions)</li>
+                    <li>— Check that your rules work before adding AI models</li>
+                    <li>— Run big simulations (1000+ agents) fast</li>
+                    <li>— Reproduce a bug the same way every time</li>
+                    <li>— Try things going wrong on purpose (dropped messages, split networks)</li>
                   </ul>
                 </div>
               </div>
@@ -450,18 +451,18 @@ export default function DocsPage() {
                   </span>
                 </div>
                 <h3 className="mt-4 font-display text-[1.7rem] leading-tight text-ink-900">
-                  Real model agents.
+                  Real AI agents.
                 </h3>
                 <p className="mt-3 text-[0.95rem] leading-[1.6] text-ink-500">
-                  Agents are backed by GPT-4, Claude, or any OpenAI-compatible
-                  endpoint. They receive scenario context as a system prompt
-                  and decide what to do each tick.
+                  Agents are run by real AI models like GPT-4, Claude, or any
+                  OpenAI-compatible service. Each agent gets the scenario
+                  details as a prompt and chooses what to do on every turn.
                 </p>
                 <ul className="mt-6 space-y-2.5 text-[0.92rem] text-ink-500">
                   {[
-                    ['Realistic.', 'Agents make decisions like real AI systems.'],
-                    ['Emergent behavior.', 'Agents can surprise you.'],
-                    ['Custom prompts.', 'YAML templates control each agent’s personality.'],
+                    ['Realistic.', 'Agents decide like real AI systems do.'],
+                    ['Can surprise you.', 'Agents may do things you did not plan for.'],
+                    ['Custom prompts.', 'YAML templates set each agent’s personality.'],
                   ].map(([head, body]) => (
                     <li key={head} className="flex gap-2.5">
                       <span className="text-rust shrink-0 mt-1 leading-none">·</span>
@@ -472,9 +473,9 @@ export default function DocsPage() {
                     </li>
                   ))}
                   {[
-                    ['Non-deterministic.', 'Different runs yield different traces.'],
-                    ['Costs money.', 'Each agent turn is an API call.'],
-                    ['Slow.', 'Limited by API latency and rate limits (10–100 agents).'],
+                    ['Not repeatable.', 'Each run can come out different.'],
+                    ['Costs money.', 'Every agent turn is an API call.'],
+                    ['Slow.', 'Held back by API speed and limits (10–100 agents).'],
                   ].map(([head, body]) => (
                     <li key={head} className="flex gap-2.5">
                       <span className="text-ink-300 shrink-0 mt-1 leading-none">·</span>
@@ -491,10 +492,10 @@ export default function DocsPage() {
                     Use Tier 2 to
                   </p>
                   <ul className="mt-3 space-y-1.5 text-[0.88rem] text-ink-500">
-                    <li>— Test how LLMs behave in multi-agent protocols</li>
-                    <li>— Benchmark different models on the same scenario</li>
-                    <li>— Study emergent coordination and strategic behavior</li>
-                    <li>— Evaluate prompt engineering for agent roles</li>
+                    <li>— See how AI models act when many agents work together</li>
+                    <li>— Compare different models on the same scenario</li>
+                    <li>— Watch how agents team up and plan ahead</li>
+                    <li>— Check how well your prompts work for each agent role</li>
                   </ul>
                 </div>
               </div>
@@ -502,11 +503,11 @@ export default function DocsPage() {
 
             <div className="mt-6 rounded-2xl bg-cream-200 p-6">
               <p className="text-[0.98rem] leading-[1.7] text-ink-500">
-                <strong className="text-ink-900 font-medium">Recommended workflow.</strong> Start with Tier 1 to
-                validate your scenario and protocol logic, then switch to Tier 2 by
+                <strong className="text-ink-900 font-medium">A good way to work.</strong> Start with Tier 1 to
+                make sure your scenario and rules work. Then move to Tier 2 by
                 changing <InlineCode>brain: state-machine</InlineCode> to{' '}
-                <InlineCode>brain: llm</InlineCode> in your YAML. Everything else
-                stays the same &mdash; same layers, same metrics, same trace format.
+                <InlineCode>brain: llm</InlineCode> in your YAML. Nothing else
+                changes &mdash; same layers, same metrics, same trace file.
               </p>
             </div>
           </Section>
@@ -519,7 +520,7 @@ export default function DocsPage() {
               Prerequisites
             </h3>
             <p className="mb-3 text-[0.95rem] text-ink-500">
-              NEST requires <strong className="text-ink-900">Python 3.12 or newer</strong>. Confirm yours before installing:
+              Nanda Town needs <strong className="text-ink-900">Python 3.12 or newer</strong>. Check your version before you install:
             </p>
             <CodeBlock>python3 --version</CodeBlock>
             <p className="mt-3 mb-8 text-[0.92rem] text-ink-400">
@@ -539,10 +540,10 @@ source .venv/bin/activate
 pip install "nest-core[plugins]"`}
             </CodeBlock>
             <p className="mt-3 mb-8 text-[0.95rem] text-ink-500">
-              This installs the NEST engine, the <InlineCode>nest</InlineCode>{' '}
-              CLI, the reference plugins for all 12 layers, and the seven
-              built-in scenarios. The venv keeps it from clashing with other
-              Python projects.
+              This installs the Nanda Town engine, the <InlineCode>nest</InlineCode>{' '}
+              command, the plugins for all 12 layers, and the seven
+              built-in scenarios. The venv keeps it separate from your other
+              Python projects so nothing clashes.
             </p>
             <p className="mb-8 text-[0.92rem] text-ink-400">
               Prefer to skip the venv? Use{' '}
@@ -555,14 +556,14 @@ pip install "nest-core[plugins]"`}
                 pipx
               </a>{' '}
               instead: <InlineCode>pipx install &quot;nest-core[plugins]&quot;</InlineCode>{' '}
-              &mdash; it gives you a global <InlineCode>nest</InlineCode> on PATH without polluting the system Python.
+              &mdash; this gives you the <InlineCode>nest</InlineCode> command everywhere without touching your system Python.
             </p>
 
             <h3 className="text-[1.15rem] font-medium text-ink-900 mb-3">
               Or: install from source (development)
             </h3>
             <p className="mb-3 text-[0.95rem] text-ink-500">
-              To hack on NEST itself, clone the repo and use{' '}
+              To work on Nanda Town itself, clone the repo and use{' '}
               <a
                 href="https://docs.astral.sh/uv/getting-started/installation/"
                 target="_blank"
@@ -591,7 +592,7 @@ uv run nest doctor`}
 
             <TerminalBlock>
 {`$ nest doctor
-NEST doctor
+Nanda Town doctor
 ========================================
   [OK] Python 3.12.9
   [OK] nest-core
@@ -636,8 +637,8 @@ export ANTHROPIC_API_KEY="sk-ant-..."`}
           {/* First experiment */}
           <Section id="first-experiment" title="Your first experiment">
             <p className="mb-5 text-[1.05rem] leading-[1.7] text-ink-500">
-              Run a marketplace simulation end-to-end in three steps.
-              Fifty buyers and fifty sellers negotiate prices over ten rounds.
+              Run a full marketplace simulation in three steps. Fifty buyers and
+              fifty sellers haggle over prices across ten rounds.
             </p>
 
             <div className="mb-8 rounded-xl border border-cream-400/70 bg-cream-200/60 p-5 text-[0.92rem] leading-[1.6] text-ink-600">
@@ -697,19 +698,19 @@ export ANTHROPIC_API_KEY="sk-ant-..."`}
           {/* Scenarios */}
           <Section id="scenarios" title="Scenario YAML reference">
             <p className="mb-6 text-[1.05rem] leading-[1.7] text-ink-500">
-              A scenario YAML defines everything about a simulation run. Here
-              is a complete, annotated example matching the actual schema.
+              A scenario YAML file sets up everything about a run. Here is a
+              full example with notes on each part. It matches the real format.
             </p>
 
             <CodeBlock title="scenarios/marketplace.yaml">
 {`name: marketplace
 description: "50 buyers and 50 sellers trading products."
 
-tier: 1                           # 1 = state-machine, 2 = LLM
-seed: 42                          # RNG seed (deterministic replay)
+tier: 1                           # 1 = scripted, 2 = AI model
+seed: 42                          # seed number (same run every time)
 
 agents:
-  count: 100                      # Total agent count
+  count: 100                      # how many agents in total
   brain: state-machine            # "state-machine" or "llm"
   # llm_provider: openai          # For Tier 2: openai or anthropic
   # llm_model: gpt-4o-mini        # For Tier 2: model name
@@ -719,7 +720,7 @@ agents:
     - name: seller
       count: 50
 
-layers:                           # Plugin name for each protocol layer
+layers:                           # which plugin to use for each layer
   transport: in_memory
   comms: nest_native
   identity: did_key
@@ -734,19 +735,19 @@ layers:                           # Plugin name for each protocol layer
   datafacts: datafacts_v1
 
 task:
-  type: marketplace               # Scenario type
+  type: marketplace               # which scenario to run
   config:
-    rounds: 10                    # Scenario-specific config
+    rounds: 10                    # settings for this scenario
 
-failures:                         # Failure injection
-  message_drop: 0.0              # 0.0 = no drops, 0.1 = 10% drop rate
-  byzantine_agents: 0.0          # Fraction of agents that garble messages
-  # network_partition:            # Split agents into isolated groups
+failures:                         # things that can go wrong
+  message_drop: 0.0              # 0.0 = no drops, 0.1 = drop 1 in 10
+  byzantine_agents: 0.0          # share of agents that send junk messages
+  # network_partition:            # split agents into groups that can't reach each other
   #   groups: [["buyer-0"], ["seller-0"]]
 
-duration: "ticks: 10000"          # Max simulation ticks
+duration: "ticks: 10000"          # most ticks the run can take
 
-metrics:                          # Which metrics to compute
+metrics:                          # which numbers to measure
   - delivery_rate
   - deal_rate
   - mean_latency
@@ -780,36 +781,37 @@ output:
           {/* Layers */}
           <Section id="layers" title="The twelve layers">
             <p className="mb-6 text-[1.05rem] leading-[1.7] text-ink-500">
-              NEST organises agent capabilities into twelve protocol layers. Each
-              layer has a default reference implementation you can swap out.
-              Agents access layers via{' '}
+              Nanda Town splits what an agent can do into twelve layers. Think
+              of them like floors in a building, each handling one job. Every
+              layer comes with a default version you can swap for your own.
+              Agents reach a layer with{' '}
               <InlineCode>ctx.plugins.get(&quot;layer_name&quot;)</InlineCode>.
             </p>
 
             <RefTable
               head={['Layer', 'What it does', 'Default']}
               rows={[
-                ['Transport', 'Moves messages between agents', 'in_memory'],
-                ['Comms', 'Structures message formats', 'nest_native'],
-                ['Identity', 'Assigns and verifies agent identities', 'did_key'],
-                ['Registry', 'Agent discovery and service lookup', 'in_memory'],
-                ['Auth', 'Authentication and permissions', 'jwt'],
-                ['Trust', 'Calculates and updates reputation scores', 'score_average'],
-                ['Payments', 'Virtual currency balance and transfers', 'prepaid_credits'],
-                ['Coordination', 'Orchestrates multi-agent workflows', 'contract_net'],
-                ['Negotiation', 'Runs negotiation protocols', 'alternating_offers'],
-                ['Memory', 'Stores and retrieves agent memory', 'blackboard'],
-                ['Privacy', 'Enforces data-sharing boundaries', 'noop'],
-                ['Data Facts', 'Validates and attests to data claims', 'datafacts_v1'],
+                ['Transport', 'Carries messages between agents', 'in_memory'],
+                ['Comms', 'Sets the shape of each message', 'nest_native'],
+                ['Identity', 'Gives each agent an ID and checks it', 'did_key'],
+                ['Registry', 'Helps agents find each other', 'in_memory'],
+                ['Auth', 'Handles logins and permissions', 'jwt'],
+                ['Trust', 'Tracks how much agents trust each other', 'score_average'],
+                ['Payments', 'Holds play-money balances and transfers', 'prepaid_credits'],
+                ['Coordination', 'Helps agents divide up the work', 'contract_net'],
+                ['Negotiation', 'Runs the back-and-forth of making deals', 'alternating_offers'],
+                ['Memory', 'Saves and looks up what agents remember', 'blackboard'],
+                ['Privacy', 'Sets limits on what data can be shared', 'noop'],
+                ['Data Facts', 'Checks and vouches for data claims', 'datafacts_v1'],
               ]}
               monoLastCol
             />
 
             <p className="mt-5 text-[0.9rem] leading-[1.6] text-ink-400">
-              Currently, the marketplace scenario uses registry, identity,
-              trust, and payments layers. Other scenarios use the layers
-              passively (they are resolved but agents do not yet call them).
-              Wiring more scenarios to use layers is in progress.
+              Right now, the marketplace scenario uses the registry, identity,
+              trust, and payments layers. Other scenarios load the layers but do
+              not call them yet. Connecting more scenarios to the layers is still
+              in progress.
             </p>
           </Section>
 
@@ -818,9 +820,9 @@ output:
           {/* Metrics */}
           <Section id="metrics" title="Metrics">
             <p className="mb-6 text-[1.05rem] leading-[1.7] text-ink-500">
-              NEST computes metrics from the JSONL trace after each run. Specify
-              which metrics you want in the scenario YAML. There is no single
-              composite score &mdash; each metric measures something specific.
+              After each run, Nanda Town reads the JSONL file and works out the
+              numbers. Pick which ones you want in the scenario YAML. There is no
+              single overall score &mdash; each number tells you one thing.
             </p>
 
             <RefTable
@@ -847,9 +849,9 @@ output:
           {/* Templates */}
           <Section id="templates" title="Agent templates (Tier 2)">
             <p className="mb-6 text-[1.05rem] leading-[1.7] text-ink-500">
-              Templates are YAML files that define LLM-backed agent behaviour:
-              system prompt, provider, model, and parameters. They are only
-              used in Tier 2 scenarios.
+              Templates are YAML files that set how an AI agent acts: its prompt,
+              which provider and model to use, and a few settings. They only
+              apply to Tier 2 scenarios.
             </p>
 
             <CodeBlock title="templates/agents/marketplace-buyer.yaml">
@@ -887,18 +889,18 @@ nest templates duplicate <src> <dest>  # Copy and modify`}
           {/* Plugins */}
           <Section id="plugins" title="Writing a plugin">
             <p className="mb-6 text-[1.05rem] leading-[1.7] text-ink-500">
-              You can replace any of the twelve layers with your own implementation.
-              A plugin is a Python class that matches the expected interface,
-              registered via Python entry points.
+              You can swap any of the twelve layers for your own version. A
+              plugin is a Python class that has the methods the layer expects.
+              You hook it in with Python entry points.
             </p>
 
             <h3 className="mb-3 text-[1.15rem] font-medium text-ink-900">
               Example: custom trust plugin
             </h3>
             <p className="mb-3 text-[0.95rem] text-ink-500">
-              Look at the reference implementations in{' '}
-              <InlineCode>packages/nest-plugins-reference/</InlineCode> for
-              the interface each layer expects. Here is a trust plugin:
+              Look at the built-in versions in{' '}
+              <InlineCode>packages/nest-plugins-reference/</InlineCode> to see
+              what each layer expects. Here is a trust plugin:
             </p>
             <CodeBlock title="my_trust/plugin.py">
 {`from nest_core.types import AgentId, Evidence, ReputationScore
@@ -955,26 +957,26 @@ my_decay = "my_trust.plugin:DecayTrust"`}
           {/* CLI */}
           <Section id="cli" title="CLI reference">
             <p className="mb-6 text-[1.05rem] leading-[1.7] text-ink-500">
-              After installing with{' '}
+              Once you install with{' '}
               <InlineCode>pip install &quot;nest-core[plugins]&quot;</InlineCode>,
-              all commands are available via the <InlineCode>nest</InlineCode> CLI.
+              you get all these commands through the <InlineCode>nest</InlineCode> command.
             </p>
 
             <RefTable
               head={['Command', 'Description']}
               rows={[
-                ['nest run <name | path.yaml>', 'Run a built-in scenario by name or a local YAML file and write its trace'],
+                ['nest run <name | path.yaml>', 'Run a built-in scenario by name, or your own YAML file, and save the trace'],
                 ['nest scenarios list / show / cp', 'List, print, or copy the seven built-in scenarios'],
-                ['nest inspect <trace.jsonl>', 'Print event summary and per-agent stats'],
-                ['nest report <trace.jsonl>', 'Generate an HTML metrics report'],
-                ['nest init <name>', 'Scaffold a new scenario YAML'],
-                ['nest doctor', 'Check installation health and plugin status'],
-                ['nest version', 'Print the installed NEST version'],
-                ['nest dashboard [trace.jsonl]', 'Open the interactive trace viewer in a browser'],
+                ['nest inspect <trace.jsonl>', 'Print a summary of events and per-agent stats'],
+                ['nest report <trace.jsonl>', 'Make an HTML report of the numbers'],
+                ['nest init <name>', 'Start a new scenario YAML for you to fill in'],
+                ['nest doctor', 'Check that your install and plugins are working'],
+                ['nest version', 'Print the installed Nanda Town version'],
+                ['nest dashboard [trace.jsonl]', 'Open the trace viewer in a browser'],
                 ['nest plugins list', 'List all installed layer plugins'],
-                ['nest templates list', 'List available agent templates'],
-                ['nest templates show <name>', 'Display a template'],
-                ['nest templates create <name>', 'Create a new agent template'],
+                ['nest templates list', 'List the agent templates you have'],
+                ['nest templates show <name>', 'Show one template'],
+                ['nest templates create <name>', 'Make a new agent template'],
                 ['nest templates duplicate <src> <dest>', 'Copy a template'],
               ]}
               monoFirstCol
@@ -986,10 +988,10 @@ my_decay = "my_trust.plugin:DecayTrust"`}
           {/* Troubleshooting */}
           <Section id="troubleshooting" title="Troubleshooting">
             <p className="mb-6 text-[1.05rem] leading-[1.7] text-ink-500">
-              Most install problems trace back to four things: the wrong
-              Python, a missing venv, a stale shell PATH, or running{' '}
-              <InlineCode>nest</InlineCode> from the wrong directory. Match
-              your symptom to one of the entries below.
+              Most install problems come down to four things: the wrong Python,
+              no venv turned on, an out-of-date shell PATH, or running{' '}
+              <InlineCode>nest</InlineCode> from the wrong folder. Find your
+              problem in the list below.
             </p>
 
             <div className="space-y-5">
@@ -997,8 +999,8 @@ my_decay = "my_trust.plugin:DecayTrust"`}
                 title="ERROR: Package 'nest-core' requires a different Python"
                 cause={
                   <>
-                    Your active Python is older than 3.12. <InlineCode>pip</InlineCode> refuses to install because{' '}
-                    <InlineCode>nest-core</InlineCode> declares{' '}
+                    Your Python is older than 3.12. <InlineCode>pip</InlineCode> won&apos;t install because{' '}
+                    <InlineCode>nest-core</InlineCode> needs{' '}
                     <InlineCode>requires-python &gt;=3.12</InlineCode>.
                   </>
                 }
@@ -1017,7 +1019,7 @@ my_decay = "my_trust.plugin:DecayTrust"`}
                 title="zsh: command not found: nest"
                 cause={
                   <>
-                    Either your venv isn&apos;t activated in this shell, or you
+                    Either your venv isn&apos;t turned on in this shell, or you
                     used <InlineCode>pip install --user</InlineCode> and{' '}
                     <InlineCode>~/.local/bin</InlineCode> isn&apos;t on your PATH.
                   </>
@@ -1025,8 +1027,8 @@ my_decay = "my_trust.plugin:DecayTrust"`}
                 fix={
                   <>
                     Run <InlineCode>source .venv/bin/activate</InlineCode> in
-                    the directory where you created the venv, then retry.
-                    Alternatively, install with{' '}
+                    the folder where you made the venv, then try again.
+                    Or install with{' '}
                     <a
                       href="https://pipx.pypa.io/stable/installation/"
                       target="_blank"
@@ -1045,18 +1047,18 @@ my_decay = "my_trust.plugin:DecayTrust"`}
                 title="nest run marketplace: Scenario 'marketplace' not found"
                 cause={
                   <>
-                    The <InlineCode>[plugins]</InlineCode> extra wasn&apos;t
-                    installed, so the built-in scenario bundle is missing.
+                    You installed without the <InlineCode>[plugins]</InlineCode>{' '}
+                    part, so the built-in scenarios are missing.
                   </>
                 }
                 fix={
                   <>
-                    Reinstall with the extra:{' '}
+                    Install it again with the extra part:{' '}
                     <InlineCode>pip install &quot;nest-core[plugins]&quot;</InlineCode>{' '}
                     (the quotes matter on zsh &mdash; without them the shell
-                    parses <InlineCode>[plugins]</InlineCode> as a glob). Run{' '}
-                    <InlineCode>nest scenarios list</InlineCode> to confirm
-                    the seven built-in scenarios are visible.
+                    reads <InlineCode>[plugins]</InlineCode> as a file pattern). Then run{' '}
+                    <InlineCode>nest scenarios list</InlineCode> to check
+                    the seven built-in scenarios show up.
                   </>
                 }
               />
@@ -1065,19 +1067,19 @@ my_decay = "my_trust.plugin:DecayTrust"`}
                 title="Trace file isn't where I expected"
                 cause={
                   <>
-                    <InlineCode>nest run</InlineCode> writes to{' '}
+                    <InlineCode>nest run</InlineCode> saves to{' '}
                     <InlineCode>./traces/&lt;scenario&gt;.jsonl</InlineCode>{' '}
-                    relative to your current working directory. If you ran it
-                    from your home directory, that&apos;s where{' '}
-                    <InlineCode>traces/</InlineCode> got created.
+                    inside whatever folder you are in. If you ran it
+                    from your home folder, that is where{' '}
+                    <InlineCode>traces/</InlineCode> ended up.
                   </>
                 }
                 fix={
                   <>
-                    <InlineCode>cd</InlineCode> into a project directory first,
-                    or pass <InlineCode>--out /path/to/trace.jsonl</InlineCode> to
-                    pick the destination. <InlineCode>nest run --help</InlineCode> lists
-                    all flags.
+                    <InlineCode>cd</InlineCode> into a project folder first,
+                    or add <InlineCode>--out /path/to/trace.jsonl</InlineCode> to
+                    choose where it goes. <InlineCode>nest run --help</InlineCode> shows
+                    all the options.
                   </>
                 }
               />
@@ -1086,17 +1088,17 @@ my_decay = "my_trust.plugin:DecayTrust"`}
                 title="I can't find a 'Run' button on this website"
                 cause={
                   <>
-                    Correct &mdash; this dashboard renders pre-recorded JSONL
-                    traces in the Visualizer and links to docs. It does not
-                    host the simulator. The simulator is the local{' '}
-                    <InlineCode>nest</InlineCode> CLI you installed above.
+                    That is right &mdash; this website only shows ready-made JSONL
+                    traces in the Visualizer and links to the docs. It does not
+                    run the simulator. The simulator is the{' '}
+                    <InlineCode>nest</InlineCode> command you installed above.
                   </>
                 }
                 fix={
                   <>
-                    Run a scenario locally (<InlineCode>nest run marketplace</InlineCode>),
-                    then drop the generated{' '}
-                    <InlineCode>traces/marketplace.jsonl</InlineCode> into the{' '}
+                    Run a scenario on your computer (<InlineCode>nest run marketplace</InlineCode>),
+                    then drop the new{' '}
+                    <InlineCode>traces/marketplace.jsonl</InlineCode> file into the{' '}
                     <a href="/visualizer" className="text-rust hover:text-rust/80 underline underline-offset-2">
                       Visualizer
                     </a>{' '}
@@ -1131,10 +1133,10 @@ my_decay = "my_trust.plugin:DecayTrust"`}
                 question="Can I run scenarios in the browser?"
                 answer={
                   <p>
-                    Not on this dashboard. The website renders pre-recorded
-                    JSONL traces and links to docs, but the simulator itself
-                    is the local <InlineCode>nest</InlineCode> CLI. To play
-                    your own runs, generate a trace locally
+                    Not on this website. It only shows ready-made JSONL traces
+                    and links to the docs. The simulator itself is the{' '}
+                    <InlineCode>nest</InlineCode> command on your computer. To play
+                    your own runs, make a trace on your machine
                     (<InlineCode>nest run marketplace</InlineCode>) and load
                     it into the{' '}
                     <a href="/visualizer" className="text-rust hover:text-rust/80 underline underline-offset-2">
@@ -1155,12 +1157,12 @@ my_decay = "my_trust.plugin:DecayTrust"`}
                 }
               />
               <FaqItem
-                question="How many agents can NEST handle?"
+                question="How many agents can Nanda Town handle?"
                 answer={
                   <p>
                     <strong className="text-ink-900">Tier 1:</strong> 10,000+ agents on a modern laptop,
-                    sub-second runs. <strong className="text-ink-900">Tier 2:</strong> 10&ndash;100
-                    agents, limited by API rate limits and cost.
+                    each run under a second. <strong className="text-ink-900">Tier 2:</strong> 10&ndash;100
+                    agents, held back by API limits and cost.
                   </p>
                 }
               />
@@ -1170,18 +1172,18 @@ my_decay = "my_trust.plugin:DecayTrust"`}
                   <p>
                     Yes. Set <InlineCode>llm_provider</InlineCode> and{' '}
                     <InlineCode>llm_model</InlineCode> in your scenario YAML.
-                    NEST supports OpenAI, Anthropic, and any OpenAI-compatible
-                    endpoint.
+                    Nanda Town works with OpenAI, Anthropic, and any
+                    OpenAI-compatible service.
                   </p>
                 }
               />
               <FaqItem
-                question="Is NEST production-ready?"
+                question="Is Nanda Town ready for production?"
                 answer={
                   <p>
-                    No. NEST is research software in active development. It is
-                    excellent for experimentation and benchmarking but APIs may
-                    change between releases.
+                    No. Nanda Town is research software that is still being
+                    built. It is great for trying things out and comparing
+                    runs, but its APIs may change from one release to the next.
                   </p>
                 }
               />
@@ -1189,12 +1191,12 @@ my_decay = "my_trust.plugin:DecayTrust"`}
                 question="What does Tier 1 actually test if agents are scripted?"
                 answer={
                   <p>
-                    Tier 1 tests the <em>protocol</em>, not the agents. It
-                    answers: <em>if every agent follows the rules perfectly,
-                    does the protocol still work under message drops, network
-                    partitions, and Byzantine failures?</em> This is the same
-                    logic behind TLA+ model checking &mdash; verify the design
-                    before adding implementation complexity.
+                    Tier 1 tests the <em>rules</em>, not the agents. It asks:{' '}
+                    <em>if every agent follows the rules exactly, do the rules
+                    still hold up when messages get dropped, the network splits,
+                    or some agents send junk?</em> It is the same idea as TLA+
+                    model checking &mdash; prove the design works before you add
+                    the messy real code on top.
                   </p>
                 }
               />

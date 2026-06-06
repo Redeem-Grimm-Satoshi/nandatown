@@ -2,7 +2,7 @@
 [project]
 name = "nest-workspace"
 version = "0.1.0"
-description = "NEST — Network Environment for Swarm Testing: a discrete-event simulator and SDK for multi-agent system research"
+description = "Nanda Town: a discrete-event simulator and SDK for multi-agent system research"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

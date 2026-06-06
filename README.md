@@ -6,15 +6,15 @@
 
 
 
-# NEST — Network Environment for Swarm Testing
+# Nanda Town
 
 <img width="1280" height="640" alt="nest_social_preview_1280x640" src="https://github.com/user-attachments/assets/0a64fce5-3b14-4c05-bf61-47379900a65b" />
 
 
-**You have an agent protocol. NEST tells you whether it actually works.**
+**You have an agent protocol. Nanda Town tells you whether it actually works.**
 
 You wrote a payments scheme, an identity scheme, a coordination scheme, a
-trust scheme — something a fleet of agents has to agree on. NEST is the
+trust scheme — something a fleet of agents has to agree on. Nanda Town is the
 test rig: it spins up a swarm, plugs your protocol into a 12-layer agent
 stack, runs them through a scenario (marketplace, auction, voting,
 consensus, supply chain, reputation), and gives you a trace you can grep,
@@ -108,7 +108,7 @@ Same seed → byte-identical trace, every time.
 
 ## Test your own protocol
 
-This is the loop NEST is for. You have a protocol; you want to know if
+This is the loop Nanda Town is for. You have a protocol; you want to know if
 it survives 50 agents, a 5% message-drop rate, and a few Byzantine
 peers.
 
@@ -331,7 +331,7 @@ Issues and pull requests are welcome at
 
 ```bibtex
 @software{nest2026,
-  title  = {NEST: Network Environment for Swarm Testing},
+  title  = {Nanda Town},
   author = {MIT Media Lab},
   year   = {2026},
   url    = {https://github.com/mariagorskikh/nest},

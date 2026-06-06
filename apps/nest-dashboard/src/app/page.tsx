@@ -39,18 +39,18 @@ function scenarioLabel(scenario: string): string {
 }
 
 const protocolLayers = [
-  { name: 'Transport', description: 'How bytes move between agents.' },
-  { name: 'Communication', description: 'Message format and semantics.' },
-  { name: 'Identity', description: 'Agent verification and credentials.' },
-  { name: 'Registry', description: 'Agent discovery and lookup.' },
-  { name: 'Auth', description: 'Authentication and access control.' },
-  { name: 'Trust', description: 'Reputation and reliability scores.' },
-  { name: 'Payments', description: 'Value transfer between agents.' },
-  { name: 'Coordination', description: 'Group decision-making protocols.' },
-  { name: 'Negotiation', description: 'Bargaining and deal-making.' },
-  { name: 'Memory', description: 'Shared state and persistence.' },
-  { name: 'Privacy', description: 'Encryption and zero-knowledge proofs.' },
-  { name: 'Data Facts', description: 'Dataset exchange and validation.' },
+  { name: 'Transport', description: 'How messages travel between agents.' },
+  { name: 'Communication', description: 'The shape and meaning of a message.' },
+  { name: 'Identity', description: 'Proving an agent is who it says it is.' },
+  { name: 'Registry', description: 'Finding and looking up other agents.' },
+  { name: 'Auth', description: 'Who is allowed to do what.' },
+  { name: 'Trust', description: 'Scores for how reliable an agent is.' },
+  { name: 'Payments', description: 'Sending value from one agent to another.' },
+  { name: 'Coordination', description: 'Making group decisions together.' },
+  { name: 'Negotiation', description: 'Haggling and striking deals.' },
+  { name: 'Memory', description: 'Shared notes that stick around.' },
+  { name: 'Privacy', description: 'Keeping data secret and proving facts without revealing them.' },
+  { name: 'Data Facts', description: 'Sharing and checking datasets.' },
 ];
 
 function useAnimatedMessages(messages: AgentMessage[], intervalMs = 1800) {
@@ -91,25 +91,25 @@ export default function Home() {
         <div className="relative mx-auto max-w-[1240px] px-6 sm:px-10 pt-20 pb-24 md:pt-28 md:pb-32">
           <div className="flex items-center gap-3 mb-10 animate-fade-in">
             <span className="inline-flex h-1.5 w-1.5 rounded-full bg-rust animate-pulse-dot" />
-            <span className="eyebrow">NEST &middot; by Project NANDA</span>
+            <span className="eyebrow">Nanda Town &middot; by Project NANDA</span>
           </div>
 
           <div className="grid gap-16 lg:grid-cols-[1.45fr_1fr] lg:items-start">
             <h1 className="font-display animate-fade-in stagger-1 text-[clamp(2.6rem,6.2vw,5.2rem)] leading-[1.02] tracking-[-0.018em] text-ink-900">
-              Testing the
+              A place
               <br />
-              <span className="italic text-ink-700">protocols</span> that
+              where AI <span className="italic text-ink-700">agents</span>
               <br />
-              let agents
+              learn to
               <br />
-              cooperate.
+              work together.
             </h1>
 
             <div className="animate-fade-in stagger-2 lg:pt-6">
               <p className="text-[1.125rem] leading-[1.55] text-ink-500 max-w-md">
-                NEST is an open sandbox where AI agents talk, trade, vote,
-                and coordinate &mdash; so you can see what works before any
-                of it goes live.
+                Nanda Town is an open sandbox where AI agents talk, trade,
+                vote, and team up &mdash; so you can see what works before
+                any of it goes live.
               </p>
 
               <div className="mt-10 flex flex-wrap gap-3">
@@ -200,18 +200,18 @@ export default function Home() {
         <div className="mx-auto max-w-[1240px] px-6 sm:px-10 py-24 md:py-32">
           <div className="grid gap-14 lg:grid-cols-[1fr_1.4fr]">
             <div>
-              <p className="eyebrow">A new substrate</p>
+              <p className="eyebrow">The groundwork</p>
               <h2 className="font-display mt-5 text-[clamp(2rem,4vw,3.4rem)] leading-[1.05] tracking-[-0.015em] text-ink-900">
                 Protocols, not<br />
                 <span className="italic text-ink-700">products.</span>
               </h2>
             </div>
             <p className="text-[1.125rem] leading-[1.65] text-ink-500 max-w-xl lg:pt-3">
-              The agent web isn&rsquo;t a single application &mdash; it&rsquo;s a stack of
-              protocols that need stress-testing before millions of agents
-              start using them. NEST gives those protocols a controlled
-              environment to fail in: predictable enough to debug, realistic
-              enough to matter.
+              The agent web isn&rsquo;t one app &mdash; it&rsquo;s a stack of
+              shared rules agents follow to work together. Those rules need a
+              tryout before millions of agents rely on them. Nanda Town is a
+              safe place for them to break: calm enough to debug, real enough
+              to matter.
             </p>
           </div>
 
@@ -221,17 +221,17 @@ export default function Home() {
               {
                 num: '01',
                 title: 'Define',
-                body: 'Author a YAML scenario or pick a built-in template. Specify the agents, their roles, the protocol layers to test, and the failure modes you want to inject.',
+                body: 'Write a short YAML file or pick a ready-made template. Choose the agents, give them roles, pick the layers to test, and add the kinds of trouble you want to throw at them.',
               },
               {
                 num: '02',
                 title: 'Run',
-                body: 'NEST spins up N agents and runs the simulation deterministically. Tier 1 uses scripted state machines; Tier 2 swaps in real LLM backends.',
+                body: 'Nanda Town starts the agents and runs the whole thing. Tier 1 uses simple scripted agents; Tier 2 swaps in real AI models.',
               },
               {
                 num: '03',
                 title: 'Analyse',
-                body: 'Inspect traces, compare metrics, replay the communication map. See exactly how agents behaved and where the protocol broke down.',
+                body: 'Read the logs, compare the numbers, and replay the map of who talked to whom. See exactly how the agents acted and where things went wrong.',
               },
             ].map((card) => (
               <div
@@ -282,11 +282,11 @@ export default function Home() {
               />
               <div className="mt-10 max-w-md">
                 <p className="font-display text-[1.45rem] leading-snug italic text-ink-700">
-                  &ldquo;A protocol is a treaty written in code &mdash; and
-                  treaties have to be tested before they&rsquo;re signed.&rdquo;
+                  &ldquo;A protocol is a handshake written in code &mdash; and
+                  a handshake is worth a trial run before you shake on it.&rdquo;
                 </p>
                 <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.22em] text-ink-300">
-                  NEST design note &middot; 2026
+                  Nanda Town design note &middot; 2026
                 </p>
               </div>
             </div>
@@ -308,10 +308,10 @@ export default function Home() {
               </h2>
             </div>
             <p className="text-[1.05rem] leading-[1.65] text-ink-500 max-w-xl">
-              Every layer is a pluggable module. Swap implementations,
-              compare behaviour side-by-side, and find the stack that works
-              for your use case. The defaults are reference implementations
-              &mdash; not opinions.
+              Each layer is a part you can swap out, like Lego bricks. Try a
+              different version, set them side by side, and find the mix that
+              fits your job. The ones we ship are starting points &mdash; not
+              the only way.
             </p>
           </div>
 
@@ -434,8 +434,8 @@ export default function Home() {
             </h2>
             <div className="lg:pb-3">
               <p className="text-[1.05rem] leading-[1.6] text-cream-200">
-                Define a scenario, run it against real agent behaviour, get
-                actionable metrics in seconds. Free, open, and built to run
+                Set up a scenario, run it with real agents, and get clear
+                numbers back in seconds. Free, open, and small enough to run
                 on your laptop.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">

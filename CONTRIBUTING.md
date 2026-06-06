@@ -1,10 +1,10 @@
-# Contributing to NEST
+# Contributing to Nanda Town
 
-Thank you for your interest in contributing to NEST. This document covers development setup, coding standards, and how to add scenarios and plugins.
+Thank you for your interest in contributing to Nanda Town. This document covers development setup, coding standards, and how to add scenarios and plugins.
 
 ## Development Setup
 
-NEST uses [uv](https://docs.astral.sh/uv/) for workspace management. All packages are in `packages/` and developed together.
+Nanda Town uses [uv](https://docs.astral.sh/uv/) for workspace management. All packages are in `packages/` and developed together.
 
 ```bash
 # Clone and install

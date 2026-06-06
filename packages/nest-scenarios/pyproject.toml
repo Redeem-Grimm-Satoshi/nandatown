@@ -2,7 +2,7 @@
 [project]
 name = "nest-scenarios"
 version = "0.1.0"
-description = "NEST scenarios: reference task scenarios for agent testing"
+description = "Nanda Town scenarios: reference task scenarios for agent testing"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

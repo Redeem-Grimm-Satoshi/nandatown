@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Hypothesis property-based tests for NEST core modules.
+"""Hypothesis property-based tests for Nanda Town core modules.
 
 Covers: simulator determinism, clock monotonicity, event queue ordering,
 metric consistency, scenario config round-trip, and message drop rate bounds.

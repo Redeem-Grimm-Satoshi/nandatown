@@ -2,7 +2,7 @@
 [project]
 name = "nest-shell"
 version = "0.1.0"
-description = "NEST shell: Tier 2 LLM-backed reference agent"
+description = "Nanda Town shell: Tier 2 LLM-backed reference agent"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

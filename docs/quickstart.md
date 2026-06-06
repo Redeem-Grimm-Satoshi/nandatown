@@ -61,7 +61,7 @@ nest report ./traces/marketplace.jsonl -o report.html
 nest dashboard ./traces/marketplace.jsonl
 ```
 
-Property-level validation (this is where NEST proves your protocol does
+Property-level validation (this is where Nanda Town proves your protocol does
 what you claim):
 
 ```bash

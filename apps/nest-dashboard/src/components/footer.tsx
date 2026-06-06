@@ -10,7 +10,7 @@ export function Footer() {
             <Link
               href="/"
               className="inline-flex items-center gap-3"
-              aria-label="NEST by Project NANDA — home"
+              aria-label="Nanda Town by Project NANDA — home"
             >
               <Image
                 src="/brand/nest-logo.png"
@@ -20,12 +20,11 @@ export function Footer() {
                 className="h-10 w-10 object-contain"
               />
               <span className="font-display text-2xl tracking-tight text-ink-900">
-                NEST
+                Nanda Town
               </span>
             </Link>
             <p className="mt-5 max-w-xs text-[0.95rem] leading-relaxed text-ink-400">
-              A discrete-event testbed for multi-agent protocols.
-              An open initiative by Project NANDA.
+              A sandbox where AI agents meet, talk, and work things out. An open project by Project NANDA.
             </p>
             <div className="mt-6 inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-ink-400">
               <Image
@@ -47,6 +46,7 @@ export function Footer() {
             <FooterLink href="/experiments">Experiments</FooterLink>
             <FooterLink href="/leaderboard">Leaderboard</FooterLink>
             <FooterLink href="/visualizer">Visualizer</FooterLink>
+            <FooterLink href="/skills">Skills</FooterLink>
           </FooterColumn>
 
           <FooterColumn title="Resources">
@@ -77,8 +77,7 @@ export function Footer() {
 
         <div className="mt-16 border-t border-cream-400/70 pt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[0.8rem] text-ink-300">
-            &copy; {new Date().getFullYear()} NEST · An open testbed for the
-            agentic web.
+            &copy; {new Date().getFullYear()} Nanda Town · An open project by Project NANDA.
           </p>
           <p className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-ink-300">
             <Image
@@ -88,7 +87,7 @@ export function Footer() {
               height={14}
               className="h-3.5 w-3.5 object-contain"
             />
-            NEST by Project NANDA
+            Nanda Town by Project NANDA
           </p>
         </div>
       </div>

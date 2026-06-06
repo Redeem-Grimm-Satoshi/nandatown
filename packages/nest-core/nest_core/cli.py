@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""NEST CLI entry point.
+"""Nanda Town CLI entry point.
 
 Example::
 
@@ -30,7 +30,7 @@ def _typer_option(*args: Any, **kwargs: Any) -> Any:
 
 app = typer.Typer(
     name="nest",
-    help="NEST — Network Environment for Swarm Testing",
+    help="Nanda Town",
     no_args_is_help=True,
 )
 
@@ -164,7 +164,7 @@ def init(
         raise typer.Exit(1)
 
     template = f"""\
-# NEST scenario: {name}
+# Nanda Town scenario: {name}
 name: {name}
 description: "TODO: describe your scenario"
 
@@ -219,7 +219,7 @@ def doctor() -> None:
     checks_passed = 0
     checks_failed = 0
 
-    typer.echo("NEST doctor")
+    typer.echo("Nanda Town doctor")
     typer.echo("=" * 40)
 
     # Python version
@@ -445,7 +445,7 @@ def _find_dashboard_html() -> Path | None:
 
 @app.command()
 def version() -> None:
-    """Print the NEST version."""
+    """Print the Nanda Town version."""
     from nest_core import __version__
 
     typer.echo(f"nest {__version__}")

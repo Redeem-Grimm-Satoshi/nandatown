@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Shared types used across all NEST layers and plugins.
+"""Shared types used across all Nanda Town layers and plugins.
 
 Example::
 

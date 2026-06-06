@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""NEST SDK: public API for plugin authors.
+"""Nanda Town SDK: public API for plugin authors.
 
 Plugin authors should import all layer interfaces and types from this package.
 

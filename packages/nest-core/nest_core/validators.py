@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Protocol invariant validators for NEST scenarios.
+"""Protocol invariant validators for Nanda Town scenarios.
 
 Validators analyze trace files and verify that protocol-specific
 correctness properties hold -- not just that messages flowed.

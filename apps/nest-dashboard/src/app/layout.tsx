@@ -23,9 +23,9 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "NEST by Project NANDA — Network Environment for Swarm Testing",
+  title: "Nanda Town — by Project NANDA",
   description:
-    "An open sandbox for testing agent protocols at scale. NEST by Project NANDA.",
+    "A sandbox for testing how AI agents work together. By Project NANDA.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

@@ -470,7 +470,7 @@ export default function AgentsPage() {
         <div className="mx-auto max-w-[1240px] px-6 sm:px-10 pt-20 pb-16">
           <div className="flex items-center gap-3 mb-10 animate-fade-in">
             <span className="inline-flex h-1.5 w-1.5 rounded-full bg-rust animate-pulse-dot" />
-            <span className="eyebrow">Live testbed &middot; synthetic feed</span>
+            <span className="eyebrow">Live demo &middot; synthetic feed</span>
           </div>
 
           <div className="grid gap-12 lg:grid-cols-[1.4fr_1fr] lg:items-start">
@@ -483,10 +483,10 @@ export default function AgentsPage() {
             </h1>
 
             <p className="animate-fade-in stagger-2 text-[1.1rem] leading-[1.6] text-ink-500 lg:pt-6 max-w-md">
-              A view of agents currently running on the NEST testbed across
+              A live view of agents running on Nanda Town across
               the world. Each dot is an agent; each line is a message exchanged
-              between clusters. The data shown here is synthetic &mdash; wired to
-              a seeded layout &mdash; and updates continuously.
+              between clusters. The data is synthetic &mdash; built on a seeded
+              layout &mdash; and updates continuously.
             </p>
           </div>
         </div>
@@ -516,12 +516,12 @@ export default function AgentsPage() {
           <div>
             <p className="eyebrow">From the field</p>
             <p className="mt-6 font-display text-[clamp(1.6rem,2.8vw,2.4rem)] leading-[1.2] italic text-ink-700">
-              &ldquo;You can&rsquo;t reason about emergent behaviour by reading
+              &ldquo;You can&rsquo;t understand what agents are doing by reading
               code. You have to <span className="not-italic text-ink-900">watch</span> the
               network, then ask why the lines drew themselves that way.&rdquo;
             </p>
             <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.22em] text-ink-300">
-              NEST design note &middot; cluster topology
+              Nanda Town design note &middot; cluster topology
             </p>
           </div>
           <ImagePlaceholder

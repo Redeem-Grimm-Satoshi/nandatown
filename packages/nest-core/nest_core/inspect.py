@@ -111,7 +111,7 @@ def format_summary(summary: TraceSummary) -> str:
         print(format_summary(summary))
     """
     lines: list[str] = []
-    lines.append("NEST Trace Summary")
+    lines.append("Nanda Town Trace Summary")
     lines.append("=" * 40)
     lines.append(f"  Total events:       {summary.total_events}")
     lines.append(f"  Agents:             {summary.agent_count}")

@@ -1,4 +1,4 @@
-# NEST documentation
+# Nanda Town documentation
 
 This folder is the long-form companion to the top-level
 [README](../README.md). The README is the elevator pitch; these pages

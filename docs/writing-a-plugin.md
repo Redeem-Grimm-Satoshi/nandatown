@@ -1,6 +1,6 @@
 # Writing a plugin
 
-A NEST plugin implements one of the 12 layer interfaces and is
+A Nanda Town plugin implements one of the 12 layer interfaces and is
 discovered by `nest run` via Python entry points.
 
 This guide walks through a complete, end-to-end **payments** plugin.
@@ -83,7 +83,7 @@ A few things worth noting:
 - **Import from `nest_sdk`.** That's the stable public surface for
   plugin authors. Don't import from `nest_core.types` directly.
 - **No magic.** This class is plain Python — you can unit-test it
-  without touching NEST at all.
+  without touching Nanda Town at all.
 
 ## Step 3: Register an entry point
 
@@ -108,7 +108,7 @@ left (`flat_fee`) is what scenarios use; the value on the right is
 pip install -e .
 ```
 
-Verify NEST sees it:
+Verify Nanda Town sees it:
 
 ```bash
 nest plugins list | grep -A1 payments
@@ -160,7 +160,7 @@ agent count, or `failures.byzantine_agents` and re-running.
 
 ## Testing your plugin
 
-NEST does **not** currently ship a `nest plugins conform` command.
+Nanda Town does **not** currently ship a `nest plugins conform` command.
 Treat your plugin like any other Python module:
 
 ```python

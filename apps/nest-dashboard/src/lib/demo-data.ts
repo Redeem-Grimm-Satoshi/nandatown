@@ -1,10 +1,9 @@
 /**
- * Illustrative reference values from Tier 1 state-machine simulations.
+ * Sample numbers from Tier 1 state-machine runs.
  *
- * These are NOT benchmark results.  Tier 1 simulations are fully
- * deterministic (no network jitter, no message drops) and use virtual
- * tick-based time.  The numbers below are designed to be internally
- * consistent with that model:
+ * These are NOT benchmark results.  Tier 1 runs use virtual tick-based
+ * time with no network jitter or message drops.  The numbers below are
+ * internally consistent with that model:
  *
  *   - delivery_rate is ~100% because Tier 1 has no transport failures.
  *   - deal_rate for marketplace is 50-70% (sellers reject when price < min).
@@ -150,7 +149,7 @@ export const experiments: Experiment[] = [
     id: "marketplace-100",
     name: "Marketplace: 100 Agents",
     description:
-      "A bustling digital marketplace where 50 buyers and 50 sellers negotiate prices. Buyers seek products, sellers respond with offers or rejections. Tests the efficiency of decentralized price discovery.",
+      "50 buyers and 50 sellers negotiate prices. Buyers make offers; sellers accept or reject. Tests how well agents find fair prices without a central authority.",
     scenario: "marketplace",
     agents: 100,
     tier: 1,
@@ -169,7 +168,7 @@ export const experiments: Experiment[] = [
     id: "auction-50",
     name: "Auction: 50 Bidders",
     description:
-      "An auctioneer announces items and collects bids from 49 competing bidders. Each round, the highest bidder wins. Tests competitive bidding strategies and fair price convergence.",
+      "An auctioneer posts items; 49 bidders compete. The highest bid wins each round. Tests whether agents settle on fair prices through competition.",
     scenario: "auction",
     agents: 50,
     tier: 1,
@@ -188,7 +187,7 @@ export const experiments: Experiment[] = [
     id: "voting-22",
     name: "Voting: Proposal & Election",
     description:
-      "A proposer submits topics, 20 voters cast yes/no ballots, and a coordinator tallies results. Tests democratic decision-making in multi-agent groups.",
+      "A proposer submits topics, 20 voters cast yes/no ballots, and a coordinator counts the results. Tests simple group decision-making.",
     scenario: "voting",
     agents: 22,
     tier: 1,
@@ -207,7 +206,7 @@ export const experiments: Experiment[] = [
     id: "consensus-7",
     name: "Quorum Consensus: 7 Nodes",
     description:
-      "A leader proposes values and followers vote to commit or abort. Commits when quorum agrees. Tests leader-based agreement with configurable thresholds.",
+      "A leader proposes values; followers vote to commit or abort. The value is committed when enough votes agree. Tests leader-based consensus with adjustable quorum sizes.",
     scenario: "consensus",
     agents: 7,
     tier: 1,
@@ -226,7 +225,7 @@ export const experiments: Experiment[] = [
     id: "supply-chain-4",
     name: "Supply Chain: 4-Hop Pipeline",
     description:
-      "Materials flow from supplier to manufacturer to distributor to retailer. Each hop transforms and forwards goods. Tests end-to-end pipeline reliability and latency.",
+      "Goods move from supplier to manufacturer to distributor to retailer. Each hop processes and passes them on. Tests whether the pipeline delivers reliably from end to end.",
     scenario: "supply_chain",
     agents: 4,
     tier: 1,
@@ -245,7 +244,7 @@ export const experiments: Experiment[] = [
     id: "reputation-10",
     name: "Reputation: Trust & Betrayal",
     description:
-      "8 traders (6 honest, 2 malicious) interact while an observer tracks reputation. Malicious agents sometimes cheat. Tests whether the reputation system correctly identifies bad actors.",
+      "8 traders (6 honest, 2 cheaters) interact while an observer tracks their reputation scores. Tests whether the system correctly flags bad actors over time.",
     scenario: "reputation",
     agents: 10,
     tier: 1,

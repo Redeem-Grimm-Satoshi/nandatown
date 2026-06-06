@@ -262,7 +262,7 @@ class TestHtmlReport:
 
         assert result.exists()
         content = result.read_text()
-        assert "NEST Trace Report" in content
+        assert "Nanda Town Trace Report" in content
         assert "delivery_rate" in content
         assert "Delivery Rate" in content
         assert "message_count" in content
@@ -317,4 +317,4 @@ class TestRunnerMetrics:
         assert runner.metrics["message_count"] > 0
         assert runner.metrics["agent_count"] == 10.0
         assert report_file.exists()
-        assert "NEST Trace Report" in report_file.read_text()
+        assert "Nanda Town Trace Report" in report_file.read_text()

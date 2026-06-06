@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  # Phase 1: Build and publish core (no NEST deps)
+  # Phase 1: Build and publish core (no Nanda Town deps)
   publish-core:
     runs-on: ubuntu-latest
     environment: pypi

@@ -2,7 +2,7 @@
 
 > **Deprecated:** The CLI is now included in `nest-core`. Install with `pip install "nest-core[plugins]"` instead.
 
-Part of [NEST](https://github.com/mariagorskikh/nest) (Network Environment for Swarm Testing), built at MIT Media Lab.
+Part of [Nanda Town](https://github.com/mariagorskikh/nest), built at MIT Media Lab.
 
 ## Installation
 

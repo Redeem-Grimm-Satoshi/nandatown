@@ -11,7 +11,7 @@ import Image from 'next/image';
 import * as d3 from 'd3';
 
 /* ------------------------------------------------------------------ */
-/*  Real NEST trace format                                            */
+/*  Real Nanda Town trace format                                      */
 /* ------------------------------------------------------------------ */
 
 type TraceKind =
@@ -379,7 +379,7 @@ function parseTrace(text: string): TraceEvent[] {
   }
   out.sort((a, b) => a.ts - b.ts);
 
-  // NEST trace files currently emit ts:0.0 for every event. If the trace
+  // Nanda Town trace files currently emit ts:0.0 for every event. If the trace
   // has no temporal spread, synthesize one from file order so playback
   // has something to animate against.
   if (out.length > 1) {
@@ -1860,8 +1860,8 @@ export default function VisualizerPage() {
               </h1>
             </div>
             <p className="animate-fade-in stagger-2 text-[1.1rem] leading-[1.6] text-ink-500 max-w-md">
-              Every pulse is a real message from a real NEST trace. Drag agents
-              around, scrub the timeline, or drop in a{' '}
+              Every pulse is a real message from a real Nanda Town trace. Drag
+              agents around, scrub the timeline, or drop in a{' '}
               <span className="font-mono text-rust">.jsonl</span> from your own{' '}
               <span className="font-mono text-rust">nest run</span>.
             </p>

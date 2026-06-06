@@ -2,11 +2,11 @@
 //
 // Synthetic agent-network data for the /agents map page.
 //
-// Coordinates are real-world city longitudes/latitudes.  A small deterministic
-// PRNG seeded from each cluster's name is used to scatter agents around the
-// cluster centroid in a stable way, so the layout is identical on every page
-// load.  No backend is required; this module is the single source of truth
-// for the map until a real /api/agents feed is wired in.
+// Coordinates are real-world city longitudes/latitudes.  A small seeded
+// PRNG (seeded from each cluster's name) scatters agents around the
+// cluster centroid in a stable way, so the layout is the same on every
+// page load.  No backend is required; this module is the single source of
+// truth for the map until a real /api/agents feed is wired in.
 
 export interface AgentCluster {
   /** Human-readable city / region label. */
@@ -57,7 +57,7 @@ export interface AgentDot {
   coords: [number, number];
 }
 
-/** Scatter `c.agents` dots around the cluster centroid in a deterministic way. */
+/** Scatter `c.agents` dots around the cluster centroid using a seeded PRNG. */
 export function jitterAgents(c: AgentCluster): AgentDot[] {
   const rng = seededRng(c.city);
   const dots: AgentDot[] = [];

@@ -10,6 +10,7 @@ const links = [
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/visualizer", label: "Visualizer" },
   { href: "/docs", label: "Docs" },
+  { href: "/skills", label: "Skills" },
 ];
 
 export function Navbar() {
@@ -18,11 +19,11 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 border-b border-cream-400/60 bg-cream-100/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[1240px] items-center justify-between px-6 sm:px-10">
-        {/* Wordmark — nest icon + NEST + "by Project NANDA" + NANDA dots */}
+        {/* Wordmark — nest icon + Nanda Town + "by Project NANDA" + NANDA dots */}
         <Link
           href="/"
           className="flex items-center gap-3 group"
-          aria-label="NEST by Project NANDA — home"
+          aria-label="Nanda Town by Project NANDA — home"
         >
           <Image
             src="/brand/nest-logo.png"
@@ -33,7 +34,7 @@ export function Navbar() {
             className="h-9 w-9 object-contain"
           />
           <span className="font-display text-[1.4rem] leading-none tracking-tight text-ink-900">
-            NEST
+            Nanda Town
           </span>
           <span className="hidden sm:inline-flex items-center gap-2 pl-3 ml-1 border-l border-cream-400 text-[10px] font-mono uppercase tracking-[0.2em] text-ink-300 leading-none">
             by Project NANDA
@@ -83,7 +84,7 @@ export function Navbar() {
             href="/experiments"
             className="inline-flex items-center rounded-md bg-ink-900 text-cream-50 px-4 py-2 text-[0.85rem] font-medium tracking-tight transition-colors hover:bg-ink-700"
           >
-            Try NEST
+            Try Nanda Town
           </Link>
         </div>
       </div>

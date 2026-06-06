@@ -97,8 +97,8 @@ export default function LeaderboardPage() {
             </h1>
             <p className="animate-fade-in stagger-2 text-[1.1rem] leading-[1.6] text-ink-500 max-w-md">
               Side-by-side metrics, no composite weighting, no hidden tie-breakers.
-              Each entry is reproducible with the same seed under deterministic
-              Tier 1 conditions.
+              Each entry can be re-run with the same seed and will produce the
+              same result under Tier 1 conditions.
             </p>
           </div>
         </div>
@@ -300,10 +300,10 @@ export default function LeaderboardPage() {
               </div>
               <div>
                 <p className="text-[1rem] leading-[1.65] text-ink-500">
-                  Rankings are based on Tier 1 reference simulations. Results
-                  are deterministic and reproducible with the same seed. Tier 1
-                  uses virtual tick-based time with no transport failures, so
-                  delivery rates are expected to be near 100%.
+                  Rankings come from Tier 1 reference runs. Re-run with the same
+                  seed and you get the same numbers. Tier 1 uses virtual
+                  tick-based time with no transport failures, so delivery rates
+                  are expected to be near 100%.
                 </p>
 
                 <div className="mt-8 grid gap-px bg-cream-400/40 border border-cream-400/40 rounded-2xl overflow-hidden sm:grid-cols-2">

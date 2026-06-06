@@ -2,7 +2,7 @@
 [project]
 name = "nest-sdk"
 version = "0.1.0"
-description = "NEST SDK: public API for plugin authors"
+description = "Nanda Town SDK: public API for plugin authors"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

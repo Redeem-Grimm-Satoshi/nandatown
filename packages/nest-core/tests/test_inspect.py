@@ -53,7 +53,7 @@ class TestAnalyzeTrace:
 
         summary = analyze_trace(trace)
         text = format_summary(summary)
-        assert "NEST Trace Summary" in text
+        assert "Nanda Town Trace Summary" in text
         assert "Total events:" in text
         assert "3" in text
 

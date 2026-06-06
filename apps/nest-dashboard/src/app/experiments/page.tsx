@@ -175,9 +175,9 @@ export default function ExperimentsPage() {
               probe behaviour.
             </h1>
             <p className="animate-fade-in stagger-2 text-[1.1rem] leading-[1.6] text-ink-500 max-w-md">
-              Explore the scenarios that ship with NEST. Each one ran with the
-              reference plugins under deterministic Tier 1 conditions &mdash;
-              every metric here is reproducible from the seed in the YAML.
+              Explore the scenarios that ship with Nanda Town. Each one ran with
+              the reference plugins &mdash; every metric here is reproducible
+              from the seed in the YAML.
             </p>
           </div>
         </div>
@@ -392,11 +392,11 @@ export default function ExperimentsPage() {
             <div>
               <p className="eyebrow">Bring your own scenario</p>
               <h2 className="font-display mt-5 text-[clamp(2rem,4vw,3.2rem)] leading-tight text-ink-900">
-                Run NEST<br />
+                Run Nanda Town<br />
                 <span className="italic text-ink-700">on your laptop.</span>
               </h2>
               <p className="mt-6 text-[1.05rem] leading-[1.6] text-ink-500 max-w-lg">
-                Install the NEST CLI and run any scenario with a single command.
+                Install the CLI and run any scenario with a single command.
                 Define your own agents, protocols, and metrics in YAML &mdash;
                 use the reference plugins or write your own.
               </p>

@@ -1,8 +1,8 @@
 # nest-scenarios
 
-NEST scenarios: reference task scenarios for agent testing
+Nanda Town scenarios: reference task scenarios for agent testing
 
-Part of [NEST](https://github.com/mariagorskikh/nest) (Network Environment for Swarm Testing), built at MIT Media Lab.
+Part of [Nanda Town](https://github.com/mariagorskikh/nest), built at MIT Media Lab.
 
 ## Installation
 

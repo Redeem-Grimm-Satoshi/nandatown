@@ -2,7 +2,7 @@
 [project]
 name = "nest-core"
 version = "0.1.4"
-description = "NEST core engine: layer interfaces, runtime, event loop, and simulator"
+description = "Nanda Town core engine: layer interfaces, runtime, event loop, and simulator"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

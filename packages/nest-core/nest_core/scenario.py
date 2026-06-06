@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Pydantic schema for NEST scenario YAML files.
+"""Pydantic schema for Nanda Town scenario YAML files.
 
 Example::
 

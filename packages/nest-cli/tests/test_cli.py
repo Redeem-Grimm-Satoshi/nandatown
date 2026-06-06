@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for NEST CLI commands."""
+"""Tests for Nanda Town CLI commands."""
 
 from __future__ import annotations
 
@@ -119,7 +119,7 @@ class TestInspect:
 
         result = runner.invoke(app, ["inspect", str(trace)])
         assert result.exit_code == 0
-        assert "NEST Trace Summary" in result.output
+        assert "Nanda Town Trace Summary" in result.output
         assert "Total events:" in result.output
 
     def test_inspect_missing_file(self) -> None:
@@ -162,7 +162,7 @@ class TestReport:
         assert result.exit_code == 0
         assert "Report written to" in result.output
         assert report_path.exists()
-        assert "NEST Trace Report" in report_path.read_text()
+        assert "Nanda Town Trace Report" in report_path.read_text()
 
     def test_report_missing_file(self) -> None:
         result = runner.invoke(app, ["report", "nonexistent.jsonl"])

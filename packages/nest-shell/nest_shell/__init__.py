@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""NEST shell: Tier 2 LLM-backed reference agent."""
+"""Nanda Town shell: Tier 2 LLM-backed reference agent."""
 
 __version__ = "0.1.0"
 
