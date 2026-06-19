@@ -749,6 +749,7 @@ class TestValidatorRegistry:
             "consensus",
             "supply_chain",
             "reputation",
+            "memory_concurrent_writers",
             "streaming_payments",
             "comms_versioning",
         }
