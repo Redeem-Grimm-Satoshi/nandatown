@@ -146,6 +146,59 @@ def test_proof_of_work_rejects_bad_difficulty() -> None:
         ProofOfWorkLedger(difficulty_bits=33)
 
 
+# --- canonical Sybil-resistance bar (EigenTrust, Kamvar et al. 2003) --------
+# The adversarial properties that reputation systems are classically measured
+# against. bonded_trust anchors trust on a scarce bond rather than a pre-trusted
+# seed, but must clear the same bar. Self-contained — no dependency on any other
+# plugin; the "trusted" agents are simply the ones that can afford a bond.
+
+
+@pytest.mark.asyncio
+async def test_sybil_clique_cannot_outrank_a_bonded_agent() -> None:
+    """A self-vouching Sybil clique cannot out-rank a bonded, endorsed agent."""
+    t = BondedTrust(ledger=CreditBackedLedger({AgentId("seed"): 100, AgentId("honest"): 100}))
+    await t.stake(AgentId("seed"), 100)
+    await t.stake(AgentId("honest"), 100)
+    await t.report(AgentId("honest"), _ev("seed", "honest", "positive"))
+    sybils = [f"sybil-{i}" for i in range(10)]
+    for src in sybils:
+        await t.stake(AgentId(src), 1_000_000)  # broke → bond denied
+        for dst in sybils:
+            if src != dst:
+                await t.report(AgentId(dst), _ev(src, dst, "positive"))
+    s_honest = (await t.score(AgentId("honest"))).score
+    s_sybil = max([(await t.score(AgentId(s))).score for s in sybils])
+    assert s_sybil < s_honest
+
+
+@pytest.mark.asyncio
+async def test_self_promotion_does_not_inflate() -> None:
+    """Self-reports cannot lift an agent above one a bonded witness vouches for."""
+    t = BondedTrust(ledger=CreditBackedLedger({AgentId("witness"): 100, AgentId("b"): 100}))
+    await t.stake(AgentId("witness"), 100)
+    await t.stake(AgentId("b"), 100)
+    for _ in range(10):
+        await t.report(AgentId("a"), _ev("a", "a", "positive"))  # self-promotion spam
+    await t.report(AgentId("b"), _ev("witness", "b", "positive"))
+    assert (await t.score(AgentId("b"))).score > (await t.score(AgentId("a"))).score
+
+
+@pytest.mark.asyncio
+async def test_distrusted_reporter_cannot_swing_a_bonded_agent() -> None:
+    """An unbonded rogue's negative blasts cannot swing a bonded, endorsed agent."""
+    t = BondedTrust(ledger=CreditBackedLedger({AgentId("seed"): 100, AgentId("target"): 100}))
+    await t.stake(AgentId("seed"), 100)
+    await t.stake(AgentId("target"), 100)
+    for _ in range(3):
+        await t.report(AgentId("target"), _ev("seed", "target", "positive"))
+    await t.stake(AgentId("rogue"), 1_000_000)  # broke → bond denied
+    for _ in range(200):
+        await t.report(AgentId("target"), _ev("rogue", "target", "negative"))
+    for _ in range(200):
+        await t.report(AgentId("rogue"), _ev("rogue", "rogue", "positive"))
+    assert (await t.score(AgentId("target"))).score > (await t.score(AgentId("rogue"))).score
+
+
 # --- config guards + the bonding path --------------------------------------
 
 
