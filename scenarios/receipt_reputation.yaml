@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: Apache-2.0
+# Receipt-reputation scenario: honest agents issue counterparty-cosigned receipts
+# while an isolated 4-agent collusion ring wash-trades reputation among itself.
+#
+# Under `trust: agent_receipts` (this submission's plugin) the ring is severed to
+# score ~0 and the honest anchor is retained, so the receipt_reputation
+# adversarial validator PASSES. Swap to `trust: score_average` (below) and the
+# ring's all-positive reports are rewarded to ~1.0, so the same validator FAILS
+# -- the demonstration that naive averaging cannot catch corroboration collusion.
+name: receipt_reputation
+description: "8 honest receipt issuers, a 4-agent collusion ring, ~10% byzantine, 1 auditor."
+
+tier: 1
+seed: 42
+
+agents:
+  # 8 honest + 4 ring + 1 byzantine + 1 auditor = 14
+  count: 14
+  brain: state-machine
+  roles:
+    - name: honest
+      count: 8
+    - name: ring
+      count: 4
+    - name: byzantine
+      count: 1
+    - name: auditor
+      count: 1
+
+layers:
+  transport: in_memory
+  comms: nest_native
+  identity: did_key
+  registry: in_memory
+  auth: jwt
+  # The whole point: agent_receipts severs the collusion ring. Switch this to
+  # `score_average` to watch the receipt_reputation validator fail on the ring.
+  trust: agent_receipts
+  payments: prepaid_credits
+  coordination: contract_net
+  negotiation: alternating_offers
+  memory: blackboard
+  privacy: noop
+  datafacts: datafacts_v1
+
+task:
+  type: receipt_reputation
+  config:
+    ring_size: 4
+    byzantine_fraction: 0.10
+
+failures:
+  message_drop: 0.0
+
+duration: "ticks: 10000"
+
+metrics:
+  - success_rate
+  - message_count
+  - agent_count
+
+output:
+  trace: ./traces/receipt_reputation.jsonl

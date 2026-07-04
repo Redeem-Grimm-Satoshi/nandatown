@@ -71,3 +71,51 @@ def _try_load_builtin(name: str) -> None:
         from nest_core.scenarios_builtin.reputation import reputation_factory
 
         register_scenario("reputation", reputation_factory)
+    elif name == "identity_rotation":
+        from nest_core.scenarios_builtin.identity_rotation import (
+            identity_rotation_factory,
+        )
+
+        register_scenario("identity_rotation", identity_rotation_factory)
+    elif name == "gossip_registry":
+        from nest_core.scenarios_builtin.gossip_registry import gossip_registry_factory
+
+        register_scenario("gossip_registry", gossip_registry_factory)
+    elif name == "memory_concurrent_writers":
+        from nest_core.scenarios_builtin.memory_concurrent_writers import (
+            memory_concurrent_writers_factory,
+        )
+
+        register_scenario("memory_concurrent_writers", memory_concurrent_writers_factory)
+    elif name == "comms_versioning":
+        from nest_core.scenarios_builtin.comms_versioning import comms_versioning_factory
+
+        register_scenario("comms_versioning", comms_versioning_factory)
+    elif name == "receipt_reputation":
+        from nest_core.scenarios_builtin.receipt_reputation import (
+            receipt_reputation_factory,
+        )
+
+        register_scenario("receipt_reputation", receipt_reputation_factory)
+    elif name == "multi_attribute_market":
+        from nest_core.scenarios_builtin.multi_attribute_market import (
+            multi_attribute_market_factory,
+        )
+
+        register_scenario("multi_attribute_market", multi_attribute_market_factory)
+    elif name == "provenance_supply_chain":
+        from nest_core.scenarios_builtin.provenance_supply_chain import (
+            provenance_supply_chain_factory,
+        )
+
+        register_scenario("provenance_supply_chain", provenance_supply_chain_factory)
+    elif name == "bft_hotstuff":
+        from nest_core.scenarios_builtin.bft_hotstuff import bft_hotstuff_factory
+
+        register_scenario("bft_hotstuff", bft_hotstuff_factory)
+    elif name == "escrow_marketplace":
+        from nest_core.scenarios_builtin.escrow_marketplace import (
+            escrow_marketplace_factory,
+        )
+
+        register_scenario("escrow_marketplace", escrow_marketplace_factory)

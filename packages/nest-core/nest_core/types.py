@@ -151,6 +151,7 @@ class PaymentStatus(enum.Enum):
 
     PENDING = "pending"
     CONFIRMED = "confirmed"
+    STREAMING = "streaming"
     FAILED = "failed"
     REFUNDED = "refunded"
 
@@ -177,14 +178,34 @@ class Response(BaseModel):
 class Signature(BaseModel):
     """A cryptographic signature over a payload.
 
+    ``key_id`` and ``signed_at`` are optional so existing callers (e.g.
+    ``did_key``, which has no key rotation) and existing ``Signature`` consumers
+    such as :class:`Attestation` keep working unchanged. They are populated by
+    rotating-identity plugins:
+
+    - ``key_id`` binds the signature to the specific public key that produced
+      it, enabling verification *as-of* the key's validity window even after the
+      signer has rotated to a newer key.
+    - ``signed_at`` is the logical tick the signer *claims* to have signed at.
+      It is **advisory audit metadata only**: a verifier must never use it as
+      the as-of authority (an attacker controls it), and instead anchors
+      verification to an externally observed tick. See
+      ``nest_plugins_reference.identity.ed25519_rotating``.
+
     Example::
 
         sig = Signature(signer=AgentId("a1"), value=b"sig-bytes", algorithm="ed25519")
+        rotated = Signature(
+            signer=AgentId("a1"), value=b"sig", algorithm="ed25519-rotating/1",
+            key_id="3b1f...", signed_at=42.0,
+        )
     """
 
     signer: AgentId
     value: bytes
     algorithm: str = "ed25519"
+    key_id: str | None = None
+    signed_at: float | None = None
 
 
 class AgentIdentity(BaseModel):

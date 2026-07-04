@@ -41,6 +41,14 @@ harness = [
     "matplotlib>=3.8",
     "PyYAML>=6.0",
 ]
+# Real-crypto extras for identity/auth/privacy plugins that need them.
+# `cryptography` powers the `ed25519_rotating` identity plugin (RFC 8032).
+# It is also declared as a hard dependency of `nest-plugins-reference`, so a
+# bare `uv sync` already installs it; this extra documents the requirement
+# per the hackathon problem brief.
+plugins = [
+    "cryptography>=42.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/projnanda/nandatown"

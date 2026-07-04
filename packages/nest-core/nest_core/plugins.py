@@ -19,18 +19,29 @@ _REF = "nest_plugins_reference"
 _BUILTINS: dict[tuple[str, str], str] = {
     ("transport", "in_memory"): f"{_REF}.transport.in_memory:StandaloneInMemoryTransport",
     ("comms", "nest_native"): f"{_REF}.comms.nest_native:NestNativeComms",
+    ("comms", "versioned"): f"{_REF}.comms.versioned:VersionedComms",
     ("identity", "did_key"): f"{_REF}.identity.did_key:DidKeyIdentity",
+    ("identity", "ed25519_rotating"): (f"{_REF}.identity.ed25519_rotating:Ed25519RotatingIdentity"),
     ("registry", "in_memory"): f"{_REF}.registry.in_memory:InMemoryRegistry",
+    ("registry", "gossip"): f"{_REF}.registry.gossip:GossipRegistry",
     ("auth", "jwt"): f"{_REF}.auth.jwt_auth:JwtAuth",
     ("trust", "score_average"): f"{_REF}.trust.score_average:ScoreAverageTrust",
+    ("trust", "agent_receipts"): f"{_REF}.trust.agent_receipts:AgentReceiptsTrust",
     ("payments", "prepaid_credits"): f"{_REF}.payments.prepaid_credits:PrepaidCredits",
+    ("payments", "streaming"): f"{_REF}.payments.streaming:StreamingPayments",
+    ("payments", "escrow"): f"{_REF}.payments.escrow:EscrowPayments",
     ("coordination", "contract_net"): f"{_REF}.coordination.contract_net:ContractNet",
+    ("coordination", "hotstuff"): f"{_REF}.coordination.hotstuff:HotStuff",
     ("negotiation", "alternating_offers"): (
         f"{_REF}.negotiation.alternating_offers:AlternatingOffers"
     ),
+    ("negotiation", "pareto"): f"{_REF}.negotiation.pareto:ParetoNegotiation",
     ("memory", "blackboard"): f"{_REF}.memory.blackboard:Blackboard",
+    ("memory", "lww_register"): f"{_REF}.memory.lww_register:LwwRegisterMemory",
     ("privacy", "noop"): f"{_REF}.privacy.noop:NoopPrivacy",
+    ("privacy", "hybrid_x25519"): f"{_REF}.privacy.hybrid_x25519:HybridX25519Privacy",
     ("datafacts", "datafacts_v1"): f"{_REF}.datafacts.datafacts_v1:DataFactsV1",
+    ("datafacts", "cid_facts"): f"{_REF}.datafacts.cid_facts:CidFacts",
 }
 
 
