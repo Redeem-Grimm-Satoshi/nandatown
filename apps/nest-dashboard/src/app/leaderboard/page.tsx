@@ -294,14 +294,7 @@ export default function LeaderboardPage() {
                 </h2>
               </div>
               <div>
-                <p className="text-[1rem] leading-[1.65] text-ink-500">
-                  Rankings come from Tier 1 reference runs. Re-run with the same
-                  seed and you get the same numbers. Tier 1 uses virtual
-                  tick-based time with no transport failures, so delivery rates
-                  are expected to be near 100%.
-                </p>
-
-                <div className="mt-8 grid gap-px bg-cream-400/40 border border-cream-400/40 rounded-2xl overflow-hidden sm:grid-cols-2">
+                <div className="grid gap-px bg-cream-400/40 border border-cream-400/40 rounded-2xl overflow-hidden sm:grid-cols-2">
                   {[
                     {
                       label: 'Delivery rate',
