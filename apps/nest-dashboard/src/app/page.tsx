@@ -216,7 +216,7 @@ export default function Home() {
               <MiniMap width={780} height={440} />
               <div className="mt-4 flex items-center justify-between px-1">
                 <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-ink-300">
-                  Live agent network · synthetic feed
+                  Live agent network
                 </span>
                 <span className="text-[0.85rem] text-ink-400 group-hover:text-ink-900 transition-colors">
                   Open map &rarr;
