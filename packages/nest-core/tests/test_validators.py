@@ -1818,6 +1818,7 @@ class TestValidatorRegistry:
             "streaming_payments",
             "empic_payments",
             "comms_versioning",
+            "comms_downgrade",
             "receipt_reputation",
             "multi_attribute_market",
             "provenance_supply_chain",
