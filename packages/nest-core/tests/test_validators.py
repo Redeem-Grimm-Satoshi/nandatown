@@ -1824,6 +1824,7 @@ class TestValidatorRegistry:
             "bft_hotstuff",
             "escrow_marketplace",
             "failure_detection",
+            "parc_migration",
         }
         assert set(VALIDATORS.keys()) == expected
 

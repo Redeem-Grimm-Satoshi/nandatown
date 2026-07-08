@@ -129,3 +129,9 @@ def _try_load_builtin(name: str) -> None:
         )
 
         register_scenario("failure_detection", failure_detection_factory)
+    elif name == "parc_migration":
+        from nest_core.scenarios_builtin.parc_migration import (
+            parc_migration_factory,
+        )
+
+        register_scenario("parc_migration", parc_migration_factory)

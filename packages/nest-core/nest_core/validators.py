@@ -3932,6 +3932,104 @@ def validate_failure_detection_completeness(
     ]
 
 
+# ---------------------------------------------------------------------------
+# Portable-reputation (PARC) migration validators
+#
+# The parc_migration scenario broadcasts one ``admit:<agent>:<decision>:
+# <reason>:<role>`` line per border decision. The six checks below each pin
+# one attack class the naive signature-trusting gate would miss (or one
+# retention property a degenerate deny-everything gate would break). Together
+# they prove the headline invariant: a valid signature is not admission.
+# ---------------------------------------------------------------------------
+
+
+def _collect_admissions(
+    events: list[dict[str, Any]],
+) -> dict[str, tuple[bool, str, str]]:
+    """Parse ``admit:<agent>:<granted|denied>:<reason>:<role>`` trace lines.
+
+    Returns ``agent -> (admitted, reason, role)`` using the last decision per
+    agent. Decisions come from the live gate against the configured trust
+    plugin, so this dict is what lets the validators discriminate between a
+    recomputing gate and a naive one.
+
+    Example::
+
+        admissions = _collect_admissions(events)
+    """
+    admissions: dict[str, tuple[bool, str, str]] = {}
+    for ev in events:
+        if ev.get("kind") not in ("send", "broadcast"):
+            continue
+        msg = _message_body(ev)
+        if not msg.startswith("admit:"):
+            continue
+        parts = msg.split(":")
+        if len(parts) < 5:
+            continue
+        agent, decision, reason, role = parts[1], parts[2], parts[3], parts[4]
+        admissions[agent] = (decision == "granted", reason, role)
+    return admissions
+
+
+def _admissions_for_role(
+    events: list[dict[str, Any]],
+    role: str,
+) -> dict[str, tuple[bool, str]]:
+    """The ``agent -> (admitted, reason)`` decisions for one population role.
+
+    Example::
+
+        ring = _admissions_for_role(events, "ring")
+    """
+    return {
+        agent: (admitted, reason)
+        for agent, (admitted, reason, r) in _collect_admissions(events).items()
+        if r == role
+    }
+
+
+def _validate_role_denied(
+    events: list[dict[str, Any]],
+    *,
+    name: str,
+    role: str,
+    expected_reason: str,
+) -> list[ValidationResult]:
+    """Shared check: every agent of ``role`` is denied with ``expected_reason``.
+
+    Fails when the population was never exercised (no decisions observed for
+    the role — a gate that crashes or stays silent must not pass), when any
+    member was admitted, or when the denial carries the wrong reason (a gate
+    that denies for an accidental reason is not demonstrating the defense the
+    validator is named for).
+
+    Example::
+
+        results = _validate_role_denied(events, name="parc_forgery_rejected",
+                                        role="forged",
+                                        expected_reason="proof_invalid")
+    """
+    decisions = _admissions_for_role(events, role)
+    if not decisions:
+        return [ValidationResult(name, False, f"no admission decisions observed for role {role!r}")]
+    problems: list[str] = []
+    for agent, (admitted, reason) in sorted(decisions.items()):
+        if admitted:
+            problems.append(f"{agent} was admitted")
+        elif reason != expected_reason:
+            problems.append(f"{agent} denied with {reason!r}, expected {expected_reason!r}")
+    if problems:
+        return [ValidationResult(name, False, "; ".join(problems))]
+    return [
+        ValidationResult(
+            name,
+            True,
+            f"{len(decisions)} {role} agent(s) denied with {expected_reason!r}",
+        )
+    ]
+
+
 def validate_failure_detection_accuracy(
     events: list[dict[str, Any]],
 ) -> list[ValidationResult]:
@@ -4037,6 +4135,131 @@ def validate_failure_detection_accuracy(
     return [accuracy, recovery]
 
 
+def validate_parc_honest_admitted(events: list[dict[str, Any]]) -> list[ValidationResult]:
+    """Every honest migrant is admitted — the gate retains genuine reputation.
+
+    Guards against the degenerate defense: a gate that denies everything
+    trivially "catches" every attack. Portability only holds if honest
+    credentials actually cross the border.
+
+    Example::
+
+        results = validate_parc_honest_admitted(events)
+    """
+    decisions = _admissions_for_role(events, "honest")
+    if not decisions:
+        return [
+            ValidationResult(
+                "parc_honest_admitted", False, "no admission decisions observed for role 'honest'"
+            )
+        ]
+    denied = {a: reason for a, (admitted, reason) in decisions.items() if not admitted}
+    if denied:
+        detail = ", ".join(f"{a} ({reason})" for a, reason in sorted(denied.items()))
+        return [ValidationResult("parc_honest_admitted", False, f"honest denied: {detail}")]
+    return [
+        ValidationResult("parc_honest_admitted", True, f"{len(decisions)} honest agent(s) admitted")
+    ]
+
+
+def validate_parc_forgery_rejected(events: list[dict[str, Any]]) -> list[ValidationResult]:
+    """A credential with tampered proof bytes is denied as ``proof_invalid``.
+
+    The naive gate never checks the proof against the recomputed canonical
+    payload, so the forged credential sails through it.
+
+    Example::
+
+        results = validate_parc_forgery_rejected(events)
+    """
+    return _validate_role_denied(
+        events,
+        name="parc_forgery_rejected",
+        role="forged",
+        expected_reason="proof_invalid",
+    )
+
+
+def validate_parc_inflation_rejected(events: list[dict[str, Any]]) -> list[ValidationResult]:
+    """An inflated score from a *trusted* issuer is denied as ``score_mismatch``.
+
+    The headline property: the credential's signature is genuine and its
+    issuer is trusted, yet recomputing the nanda-rep/0.2 scores from the
+    carried receipts exposes the inflated claim. A gate that trusts signed
+    claims (the naive baseline) admits it and FAILS this validator.
+
+    Example::
+
+        results = validate_parc_inflation_rejected(events)
+    """
+    return _validate_role_denied(
+        events,
+        name="parc_inflation_rejected",
+        role="inflated",
+        expected_reason="score_mismatch",
+    )
+
+
+def validate_parc_ring_severed(events: list[dict[str, Any]]) -> list[ValidationResult]:
+    """Wash-ring members are denied via whole-graph severance at the border.
+
+    Each ring member's *inline* credential is individually corroborated (a
+    single-subject ledger is a star and cannot show the ring), so inline
+    recomputation alone admits it. Only re-running collusion severance over
+    the originating domain's published ledger reveals the isolated dense
+    component — the reason must therefore be ``severed_below_threshold``.
+
+    Example::
+
+        results = validate_parc_ring_severed(events)
+    """
+    return _validate_role_denied(
+        events,
+        name="parc_ring_severed",
+        role="ring",
+        expected_reason="severed_below_threshold",
+    )
+
+
+def validate_parc_replay_rejected(events: list[dict[str, Any]]) -> list[ValidationResult]:
+    """A stolen (genuine) credential presented by a non-subject is denied.
+
+    The credential itself verifies — it was honestly issued to someone else.
+    Admission must bind the presenter to ``credentialSubject.id``
+    (``replay_presenter_mismatch``), or any bystander can borrow reputation.
+
+    Example::
+
+        results = validate_parc_replay_rejected(events)
+    """
+    return _validate_role_denied(
+        events,
+        name="parc_replay_rejected",
+        role="replay",
+        expected_reason="replay_presenter_mismatch",
+    )
+
+
+def validate_parc_stale_key_rejected(events: list[dict[str, Any]]) -> list[ValidationResult]:
+    """A credential signed with a rotated-out issuer key is denied as ``stale_key``.
+
+    The signature bytes are cryptographically valid under the old key; what
+    fails is the identity layer's key-rotation window as-of the credential's
+    ``validFrom`` tick. This is the cross-layer check a trust plugin that
+    ignores the identity layer cannot perform.
+
+    Example::
+
+        results = validate_parc_stale_key_rejected(events)
+    """
+    return _validate_role_denied(
+        events,
+        name="parc_stale_key_rejected",
+        role="stale",
+        expected_reason="stale_key",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Validator registry
 # ---------------------------------------------------------------------------
@@ -4132,5 +4355,13 @@ VALIDATORS: dict[str, list[Any]] = {
     "failure_detection": [
         validate_failure_detection_completeness,
         validate_failure_detection_accuracy,
+    ],
+    "parc_migration": [
+        validate_parc_honest_admitted,
+        validate_parc_forgery_rejected,
+        validate_parc_inflation_rejected,
+        validate_parc_ring_severed,
+        validate_parc_replay_rejected,
+        validate_parc_stale_key_rejected,
     ],
 }
