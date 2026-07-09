@@ -2625,6 +2625,130 @@ def validate_comms_no_silent_drop(
 
 
 # ---------------------------------------------------------------------------
+# Comms downgrade-attack validator (adversarial)
+# ---------------------------------------------------------------------------
+# Ground truth for "was this envelope tampered?" is recomputed from the bytes a
+# receiver actually saw, independent of the decoder under test: an envelope that
+# carries an ``auth_tag`` is authentic iff that tag still covers its canonical
+# content. A comms layer passes iff it *rejects* every envelope whose tag no
+# longer verifies (rollback / field-strip) while still *accepting* the authentic
+# ones. ``versioned`` and ``nest_native`` have no tag concept, so they accept the
+# tampered copies and fail; ``authenticated`` rejects them and passes.
+
+
+def _collect_downgrade_wire(
+    events: list[dict[str, Any]],
+) -> dict[str, bool]:
+    """Map each delivered tagged envelope id to whether its ``auth_tag`` verifies.
+
+    Only envelopes that actually carry a tag are judged; untagged legacy traffic
+    is out of scope for this check. ``True`` means authentic (tag matches the
+    recomputed value), ``False`` means tampered.
+
+    Example::
+
+        authentic_by_id = _collect_downgrade_wire(events)
+    """
+    from nest_plugins_reference.comms.authenticated import (
+        AUTH_TAG_FIELD,
+        expected_auth_tag,
+    )
+
+    authentic: dict[str, bool] = {}
+    for ev in events:
+        if ev.get("kind") != "receive":
+            continue
+        env = _parse_comms_envelope(str(ev.get("msg", "")))
+        if env is None or AUTH_TAG_FIELD not in env:
+            continue
+        mid = str(env.get("id"))
+        carried = str(env.get(AUTH_TAG_FIELD))
+        authentic[mid] = carried == expected_auth_tag(env)
+    return authentic
+
+
+def validate_comms_downgrade_resistance(
+    events: list[dict[str, Any]],
+) -> list[ValidationResult]:
+    """Receivers must reject envelopes whose authentication tag no longer covers them.
+
+    Catches the *silent-downgrade* attack: an on-path adversary rewrites an
+    authentic envelope (rolls ``schema_version`` back, or strips a field) and
+    leaves the stale tag in place. ``authenticated`` recomputes the tag and
+    refuses the forgery; ``versioned``/``nest_native`` have no tag and accept it.
+
+    Example::
+
+        results = validate_comms_downgrade_resistance(events)
+    """
+    authentic = _collect_downgrade_wire(events)
+    acks = _collect_comms_acks(events)
+    if not authentic:
+        return [
+            ValidationResult("comms_downgrade_resistance", False, "no tagged envelopes in trace")
+        ]
+    violations: list[str] = []
+    tampered_checked = 0
+    for mid, is_authentic in authentic.items():
+        if is_authentic:
+            continue
+        tampered_checked += 1
+        status = acks.get(mid)
+        outcome = status[0] if status is not None else "no ack"
+        if not outcome.startswith("rejected"):
+            violations.append(f"{mid}: tampered envelope not rejected (got {outcome})")
+    if violations:
+        return [ValidationResult("comms_downgrade_resistance", False, "; ".join(violations))]
+    return [
+        ValidationResult(
+            "comms_downgrade_resistance",
+            True,
+            f"{tampered_checked} tampered envelope(s) correctly rejected",
+        )
+    ]
+
+
+def validate_comms_authentic_delivery(
+    events: list[dict[str, Any]],
+) -> list[ValidationResult]:
+    """Receivers must still accept *authentic* envelopes (no false positives).
+
+    The liveness counterpart to
+    :func:`validate_comms_downgrade_resistance`: a plugin must not "pass" the
+    security check by rejecting everything. Every delivered envelope whose tag
+    verifies has to be accepted, so tamper-evidence does not break the honest
+    rolling-upgrade traffic it rides alongside.
+
+    Example::
+
+        results = validate_comms_authentic_delivery(events)
+    """
+    authentic = _collect_downgrade_wire(events)
+    acks = _collect_comms_acks(events)
+    if not authentic:
+        return [ValidationResult("comms_authentic_delivery", False, "no tagged envelopes in trace")]
+    violations: list[str] = []
+    honest_checked = 0
+    for mid, is_authentic in authentic.items():
+        if not is_authentic:
+            continue
+        honest_checked += 1
+        status = acks.get(mid)
+        outcome = status[0] if status is not None else "no ack"
+        if outcome != "accepted":
+            violations.append(f"{mid}: authentic envelope not accepted (got {outcome})")
+    if violations:
+        return [ValidationResult("comms_authentic_delivery", False, "; ".join(violations))]
+    return [
+        ValidationResult(
+            "comms_authentic_delivery",
+            True,
+            f"{honest_checked} authentic envelope(s) correctly accepted",
+        )
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Receipt-reputation (collusion-ring) validators
 # ---------------------------------------------------------------------------
 
@@ -4479,6 +4603,10 @@ VALIDATORS: dict[str, list[Any]] = {
     "comms_versioning": [
         validate_comms_reject_unknown_major,
         validate_comms_no_silent_drop,
+    ],
+    "comms_downgrade": [
+        validate_comms_downgrade_resistance,
+        validate_comms_authentic_delivery,
     ],
     "marketplace": [
         validate_marketplace_no_double_sell,
