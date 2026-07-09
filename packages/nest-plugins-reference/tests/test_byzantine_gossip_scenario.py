@@ -27,7 +27,12 @@ import pytest
 from nest_core.runner import ScenarioRunner
 from nest_core.scenario import ScenarioConfig
 from nest_core.types import AgentId, Query
-from nest_plugins_reference.registry.byzantine_gossip import canonical_write_bytes
+from nest_plugins_reference.registry.byzantine_gossip import (
+    REASON_BAD_SIGNATURE,
+    REASON_MISSING_SIGNATURE,
+    REASON_SIGNER_MISMATCH,
+    canonical_write_bytes,
+)
 from nest_plugins_reference.validators.registry_byzantine_validators import (
     EquivocationView,
     check_no_eclipse,
@@ -52,6 +57,39 @@ def _config(yaml_name: str, registry_plugin: str, trace: Path, seed: int) -> Sce
     config.output.trace = str(trace)
     config.seed = seed
     return config
+
+
+_PHANTOM_SUFFIX_REASONS = {
+    "missing": REASON_MISSING_SIGNATURE,
+    "mismatch": REASON_SIGNER_MISMATCH,
+    "badsig": REASON_BAD_SIGNATURE,
+}
+"""Maps each ``_forged_entries`` suffix to the rejection reason ``byzantine_gossip``
+records for it (see ``nest_core.scenarios_builtin.gossip_byzantine._forged_entries``
+and ``byzantine_gossip._verify_card``)."""
+
+
+def _phantom_ids(yaml_name: str) -> dict[AgentId, str]:
+    """Return every phantom id ``ForgerDriverAgent`` injects for ``yaml_name``, mapped to reason.
+
+    Mirrors ``gossip_byzantine_forgery_factory``'s ``phantom_prefix=f"phantom-{i}"``
+    enumeration over the scenario's ``forger`` role count and
+    ``_forged_entries``'s three fixed suffixes per forger -- computed from the
+    scenario YAML itself (not hardcoded) so a role-count change cannot silently
+    desync this from the fleet the factory actually builds.
+
+    Example::
+
+        ids = _phantom_ids("gossip_byzantine_forgery.yaml")
+        assert ids[AgentId("phantom-0-missing")] == REASON_MISSING_SIGNATURE
+    """
+    config = ScenarioConfig.from_yaml(_SCENARIOS_DIR / yaml_name)
+    forger_count = next(role.count for role in config.agents.roles if role.name == "forger")
+    return {
+        AgentId(f"phantom-{i}-{suffix}"): reason
+        for i in range(forger_count)
+        for suffix, reason in _PHANTOM_SUFFIX_REASONS.items()
+    }
 
 
 async def _run(yaml_name: str, registry_plugin: str, trace: Path, seed: int) -> dict[str, Any]:
@@ -168,10 +206,92 @@ class TestForgeryScenario:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("seed", _SEEDS)
     async def test_reference_gossip_fails_forged_check(self, tmp_path: Path, seed: int) -> None:
+        # NOTE: ``verdicts["forged"] is False`` here is also trivially true for a
+        # structural reason unrelated to this scenario's attack -- plain `gossip`
+        # never signs ANYTHING, including honest agents' own registrations, so
+        # every honest card is "unsigned" regardless of whether a forger is even
+        # present (see check_no_forged_card_in_view's docstring). That conflates
+        # "gossip never signs" with "the injected phantom cards were accepted."
+        # test_reference_gossip_accepts_phantom_cards /
+        # test_byzantine_gossip_rejects_phantom_cards below assert the
+        # attack-specific fact directly: the forger's phantom ids themselves land
+        # in honest views under `gossip` and are rejected under
+        # `byzantine_gossip`.
         trace = tmp_path / f"forgery_ref_{seed}.jsonl"
         plugins = await _run("gossip_byzantine_forgery.yaml", "gossip", trace, seed)
         verdicts = await _validator_verdicts(plugins)
         assert verdicts["forged"] is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("seed", _SEEDS)
+    async def test_reference_gossip_accepts_phantom_cards(self, tmp_path: Path, seed: int) -> None:
+        """The attack-specific fact: forged/impersonated phantom ids land in honest views.
+
+        Causally clean discriminator counterpart to
+        ``test_byzantine_gossip_rejects_phantom_cards``: asserts the thing the
+        forgery attack actually causes under ``gossip`` -- not merely that
+        ``check_no_forged_card_in_view`` fails (which it would even with zero
+        forger agents, since ``gossip`` never signs anything).
+
+        Example::
+
+            plugins = await _run("gossip_byzantine_forgery.yaml", "gossip", trace, 42)
+        """
+        trace = tmp_path / f"forgery_ref_phantom_{seed}.jsonl"
+        plugins = await _run("gossip_byzantine_forgery.yaml", "gossip", trace, seed)
+        registries: dict[AgentId, Any] = plugins["_byzantine_registries"]
+        honest_ids: set[AgentId] = plugins["_honest_ids"]
+        phantom_ids = _phantom_ids("gossip_byzantine_forgery.yaml")
+
+        cards = await _collect_cards(registries, honest_ids)
+        missing = set(phantom_ids) - cards.keys()
+        assert not missing, (
+            f"expected every forged phantom id to be accepted into some honest "
+            f"view under `gossip` (the attack this scenario proves); missing: "
+            f"{sorted(missing)}"
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("seed", _SEEDS)
+    async def test_byzantine_gossip_rejects_phantom_cards(self, tmp_path: Path, seed: int) -> None:
+        """The attack-specific fact: phantom ids are absent everywhere and land in ``rejections``.
+
+        Mirror image of ``test_reference_gossip_accepts_phantom_cards``: under
+        ``byzantine_gossip`` the same phantom ids from the same forger agents
+        must be absent from *every* honest agent's view (rejected before
+        ``_apply``, per-card, at the point ``handle_gossip`` verifies -- see
+        ``ByzantineGossipRegistry.handle_gossip``) and each honest registry's
+        ``rejections`` ledger must record the expected reason code for it. The
+        forger ``ctx.broadcast``s directly to every peer (see
+        ``ForgerDriverAgent``/``InMemoryTransport.broadcast``), so every honest
+        registry independently receives and rejects each phantom card -- this
+        checks all of them, not just "someone."
+
+        Example::
+
+            plugins = await _run("gossip_byzantine_forgery.yaml", "byzantine_gossip", trace, 42)
+        """
+        trace = tmp_path / f"forgery_byz_phantom_{seed}.jsonl"
+        plugins = await _run("gossip_byzantine_forgery.yaml", "byzantine_gossip", trace, seed)
+        registries: dict[AgentId, Any] = plugins["_byzantine_registries"]
+        honest_ids: set[AgentId] = plugins["_honest_ids"]
+        phantom_ids = _phantom_ids("gossip_byzantine_forgery.yaml")
+
+        cards = await _collect_cards(registries, honest_ids)
+        leaked = set(phantom_ids) & cards.keys()
+        assert not leaked, (
+            f"expected every forged phantom id to be rejected before `_apply` "
+            f"under `byzantine_gossip`; leaked into a view: {sorted(leaked)}"
+        )
+
+        for aid in honest_ids:
+            rejections = dict(getattr(registries[aid], "rejections", []))
+            for phantom_id, expected_reason in phantom_ids.items():
+                assert rejections.get(phantom_id) == expected_reason, (
+                    f"expected honest agent {aid!r}'s rejections ledger to record "
+                    f"({phantom_id!r}, {expected_reason!r}); got "
+                    f"{rejections.get(phantom_id)!r}"
+                )
 
 
 # ---------------------------------------------------------------------------
