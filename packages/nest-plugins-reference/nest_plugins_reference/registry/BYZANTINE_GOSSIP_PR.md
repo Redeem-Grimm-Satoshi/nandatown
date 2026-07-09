@@ -1,9 +1,3 @@
-<!--
-PR-body draft. NO PR has been opened for this branch
-(hackathon/bogacsmz-registry-byzantine-gossip) -- this file is handed back
-for review; a human decides when/whether to open the PR itself.
--->
-
 # feat(registry): byzantine-resistant gossip -- signed cards, signed-equivocation quarantine, eclipse-resistant sampling
 
 **Persona for this review: trust/honesty auditor.** I built the adversarial
