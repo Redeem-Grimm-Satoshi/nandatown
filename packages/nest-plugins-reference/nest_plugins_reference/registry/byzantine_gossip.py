@@ -70,8 +70,43 @@ this — see ``canonical_write_bytes``, version and tombstone are signed).
 The publisher is quarantined on the spot: its card is evicted from the
 local view, the conflict is recorded in ``self.equivocations``, and every
 subsequent card from that publisher — genuinely signed or not — is refused
-without re-litigating the question. Task 4 adds eclipse-resistant peer
-sampling + adversarial scenarios and validators.
+without re-litigating the question.
+
+Task 4 (this task) closes the last gap the earlier tasks left open: Tasks
+2-3 only decide whether a card that *arrives* at this agent is trustworthy
+(signed, not forged, not equivocating). They do nothing to guarantee a card
+*arrives* at all. ``gossip_round`` picked ``fanout`` peers **uniformly at
+random** from the full peer set every round -- exactly like the plain
+``GossipRegistry`` it copies. If a byzantine-controlled subset of peers is
+large enough (or the draw is merely unlucky), every peer this agent gossips
+with in a given round can be byzantine, and since each round redraws
+independently with no memory of who was contacted before, an adversary that
+holds enough of the peer set (or enough sybil identities in it) can keep an
+honest agent eclipsed from a specific honest publisher's cards indefinitely
+-- no signature or equivocation check ever gets a chance to run because the
+honest card never shows up in an ``OP_PUSH``.
+
+This plugin's ``gossip_round`` fixes that by drawing from two disjoint
+pools every round instead of one: a deterministic **anchor set** -- the
+lexicographically-first ``ceil(fanout / 2)`` peers by ``AgentId``, recomputed
+identically every round from the current peer list -- plus ``floor(fanout /
+2)`` peers drawn from the *remaining* peers via the agent's seeded
+``ctx.rng`` (see ``_sample_eclipse_resistant``). As long as at least one
+anchor slot is held by an honest peer, that peer is contacted **every
+single round**, not just when the random draw happens to land on it, so an
+honest publisher's signed, verified card is guaranteed to eventually reach
+this agent through that fixed contact rather than depending on random luck
+each round. This is a **heuristic, not a proof**: the anchor set is
+positional (lexicographically-first by ``AgentId`` among this agent's
+current peers), not identity-vetted, so a topology where the adversary
+controls every one of the lexicographically-first ``ceil(fanout / 2)``
+``AgentId``s among a given victim's peers defeats the guarantee for that
+victim specifically -- see ``VERIFICATION.md`` for that caveat, and
+``test_eclipse_resistance_keeps_honest_contact`` /
+``test_eclipse_resistant_sampling_is_deterministic`` for the adversarial
+and determinism tests. Determinism is preserved throughout: same seed, same
+peer set -> byte-identical chosen list, exactly like the uniform sampler it
+replaces.
 
 Example::
 
@@ -88,6 +123,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import random
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -181,8 +217,11 @@ class ByzantineGossipRegistry:
     ``handle_gossip`` also witnesses every verified write against
     ``(publisher_id, version)`` and quarantines a publisher caught signing
     two different cards at the same version (equivocation) — see
-    ``equivocations`` and the module docstring. Eclipse resistance lands in
-    Task 4.
+    ``equivocations`` and the module docstring. ``gossip_round`` mixes a
+    deterministic anchor peer set with seeded-random peers so a bounded
+    byzantine fraction cannot fully surround (eclipse) an honest agent's
+    inbound honest data — see ``_sample_eclipse_resistant`` and the module
+    docstring's Task 4 section.
 
     Driver agents call ``gossip_round(ctx)`` on a schedule and forward
     inbound ``GOSSIP_PREFIX``-marked payloads to
@@ -329,11 +368,15 @@ class ByzantineGossipRegistry:
     # ------------------------------------------------------------------
 
     async def gossip_round(self, ctx: AgentContext) -> None:
-        """Run one round of push-pull anti-entropy.
+        """Run one round of push-pull anti-entropy with eclipse-resistant peer sampling.
 
-        Same peer-sampling strategy as ``GossipRegistry.gossip_round`` for
-        now; Task 4 replaces the uniform sample with an eclipse-resistant
-        one.
+        Unlike ``GossipRegistry.gossip_round`` (pure uniform sampling),
+        picks ``fanout`` peers via ``_sample_eclipse_resistant``: a
+        deterministic anchor set (the lexicographically-first
+        ``ceil(fanout / 2)`` peers by ``AgentId``) plus ``floor(fanout / 2)``
+        seeded-random peers from the rest. See the module docstring's Task 4
+        section for the eclipse threat model this defends against and its
+        honest limit (the anchor guarantee is heuristic, not a proof).
 
         Example::
 
@@ -343,7 +386,7 @@ class ByzantineGossipRegistry:
         if not peers:
             return
         fanout = min(self._network.fanout, len(peers))
-        chosen = _sample_without_replacement(ctx.rng, peers, fanout)
+        chosen = _sample_eclipse_resistant(ctx.rng, peers, fanout)
         digest = self._digest()
         payload = GOSSIP_PREFIX + OP_DIGEST + _encode(digest)
         for peer in chosen:
@@ -625,8 +668,10 @@ def _matches(card: AgentCard, query: Query) -> bool:
 def _sample_without_replacement(rng: random.Random, peers: list[AgentId], k: int) -> list[AgentId]:
     """Deterministic sample of ``k`` peers from ``peers`` using ``rng``.
 
-    Structural copy of ``gossip.py``'s Fisher-Yates sampler.  Task 4
-    replaces this with the eclipse-resistant sampler.
+    Structural copy of ``gossip.py``'s Fisher-Yates sampler. Used by
+    ``_sample_eclipse_resistant`` for the random half of its draw; no
+    longer used directly by ``gossip_round`` (see that function and the
+    module docstring's Task 4 section).
     """
     pool = list(peers)
     out: list[AgentId] = []
@@ -636,6 +681,66 @@ def _sample_without_replacement(rng: random.Random, peers: list[AgentId], k: int
         pool[j] = pool[-1]
         pool.pop()
     return out
+
+
+def _sample_eclipse_resistant(rng: random.Random, peers: list[AgentId], k: int) -> list[AgentId]:
+    """Eclipse-resistant peer sample: a deterministic anchor set + seeded-random rest.
+
+    Splits ``peers`` into two **disjoint** pools and draws from both every
+    round, instead of one pure-uniform draw over the whole set (contrast
+    ``_sample_without_replacement``, which this function still uses — for
+    the random half only):
+
+    * **Anchor pool**: the lexicographically-first ``ceil(k / 2)`` peers by
+      ``AgentId`` (``sorted(peers)[:anchor_count]``). Fully deterministic —
+      no ``rng`` involved — so it is the *same* set every round for a given
+      peer list. This is the eclipse defense: if even one anchor slot is
+      held by an honest peer, that peer is gossiped with on *every* round,
+      not just when a random draw happens to land on it.
+    * **Random pool**: ``floor(k / 2)`` peers drawn via ``rng`` from the
+      peers *not* in the anchor pool (``_sample_without_replacement`` over
+      ``sorted(peers)[anchor_count:]``). Keeps some randomised mixing so
+      gossip still spreads beyond the fixed anchor contacts.
+
+    ``k`` is capped at ``len(peers)`` first, so ``anchor_count +
+    random_count == k <= len(peers)`` always holds and the two pools never
+    need to overlap or wrap.
+
+    Deterministic: same ``rng`` state + same ``peers`` list → byte-identical
+    output every time (the anchor half never depends on ``rng`` at all, and
+    the random half is the same seeded Fisher-Yates draw
+    ``_sample_without_replacement`` always was).
+
+    **Threat model (see the module docstring's Task 4 section for the full
+    argument):** pure uniform sampling of the whole peer set can, for an
+    unlucky seed or a large-enough byzantine fraction, draw a round's peers
+    entirely from byzantine agents — eclipsing this agent from a specific
+    honest publisher's cards indefinitely, since every round redraws
+    independently with no memory. Mixing in a fixed anchor contact bounds
+    that: as long as one anchor slot is honest, this agent keeps a stable
+    honest contact every round regardless of the random draw. This is a
+    **heuristic, not a proof** — the anchor set is positional
+    (lexicographically-first ``AgentId``), not identity-vetted, so an
+    adversary that controls every one of the lexicographically-first
+    ``ceil(k / 2)`` ``AgentId``s among a victim's peers defeats the
+    guarantee for that victim. See ``VERIFICATION.md`` for that caveat.
+
+    Example::
+
+        chosen = _sample_eclipse_resistant(ctx.rng, peers, fanout)
+        same_again = _sample_eclipse_resistant(random.Random(same_seed), peers, fanout)
+        assert chosen == same_again
+    """
+    k = min(k, len(peers))
+    if k <= 0:
+        return []
+    ordered = sorted(peers)
+    anchor_count = math.ceil(k / 2)
+    anchors = ordered[:anchor_count]
+    remaining = ordered[anchor_count:]
+    random_count = k - anchor_count
+    random_peers = _sample_without_replacement(rng, remaining, random_count)
+    return anchors + random_peers
 
 
 def _encode(digest: dict[AgentId, _WriteTag]) -> bytes:

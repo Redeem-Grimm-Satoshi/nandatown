@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import random
 
 from nest_core.layers.registry import Registry
 from nest_core.plugins import PluginRegistry
@@ -25,6 +26,8 @@ from nest_core.types import AgentCard, AgentId, Query, Signature
 from nest_plugins_reference.identity.did_key import DidKeyIdentity
 from nest_plugins_reference.registry.byzantine_gossip import (
     ByzantineGossipRegistry,
+    _sample_eclipse_resistant,  # pyright: ignore[reportPrivateUsage]
+    _sample_without_replacement,  # pyright: ignore[reportPrivateUsage]
     canonical_card_bytes,
     canonical_write_bytes,
 )
@@ -468,3 +471,106 @@ def test_register_signs_card_with_verifiable_signature() -> None:
     # not just canonical_card_bytes -- see test_replay_with_inflated_version_rejected
     # and test_tombstone_flip_rejected for why that matters.
     assert idents["a"].verify(canonical_write_bytes(card, version, tombstone), sig, AgentId("a"))
+
+
+# ---------------------------------------------------------------------------
+# Task 4: eclipse-resistant peer sampling -- gossip_round must not be
+# eclipsable by a byzantine-heavy random draw. Tasks 2-3 only decide whether
+# an ARRIVING card is trustworthy; they do nothing if the honest card never
+# arrives because gossip_round happened to sample only byzantine peers.
+# ---------------------------------------------------------------------------
+
+
+class _RoutingContext:
+    """Minimal ``AgentContext`` stand-in that actually routes gossip messages.
+
+    ``_StubContext`` above forbids ``ctx.send`` outright because the
+    existing ``handle_gossip``-only tests never trigger it. ``gossip_round``
+    always calls ``ctx.send`` for every chosen peer, and a digest reply may
+    call ``ctx.send`` back again (the ``OP_PUSH`` response) -- so exercising
+    a real ``gossip_round`` needs a context that actually delivers. This
+    stand-in delivers a payload straight into the target registry's
+    ``handle_gossip``, using the *target's own* context (so its potential
+    reply resolves too), without spinning up the full simulator.
+    """
+
+    def __init__(
+        self,
+        agent_id: AgentId,
+        rng: random.Random,
+        registries: dict[AgentId, ByzantineGossipRegistry],
+        contexts: dict[AgentId, _RoutingContext],
+    ) -> None:
+        self.agent_id = agent_id
+        self.rng = rng
+        self._registries = registries
+        self._contexts = contexts
+
+    async def send(self, to: AgentId, payload: bytes) -> None:
+        await self._registries[to].handle_gossip(
+            self.agent_id,
+            payload,
+            self._contexts[to],  # type: ignore[arg-type]
+        )
+
+
+def test_eclipse_resistance_keeps_honest_contact() -> None:
+    """Victim ``v`` has peers ``[h, m1, m2, m3]`` (``h`` honest, the ``m``s byzantine/silent).
+
+    Seed 5 is brute-forced so that ``_sample_without_replacement`` (the pure
+    -uniform reference sampler ``gossip.py`` and pre-Task-4 code both use)
+    drawing 3-of-4 peers from ``[h, m1, m2, m3]`` excludes ``h`` entirely --
+    a real eclipse: with that draw, ``v`` never contacts the one peer that
+    holds the honest publisher's card, no matter how many further rounds
+    pass (each round redraws independently). ``h`` is lexicographically
+    first among ``v``'s peers, so it always lands in the anchor half of
+    ``_sample_eclipse_resistant`` regardless of what the random half draws
+    -- the mixed sampler must still contact ``h`` for this exact seed, and
+    the honest card must therefore converge into ``v``'s view.
+    """
+    ids = [AgentId("v"), AgentId("h"), AgentId("m1"), AgentId("m2"), AgentId("m3")]
+    idents = _peered_identities("v", "h", "m1", "m2", "m3")
+    net = GossipNetwork(agent_ids=ids)  # DEFAULT_FANOUT == 3; peers_of(v) == [h, m1, m2, m3]
+    seed = 5
+
+    # --- Reference: pure-uniform sampling really does eclipse v for this seed ---
+    peers_of_v = net.peers_of(AgentId("v"))
+    pure_uniform_chosen = _sample_without_replacement(random.Random(seed), peers_of_v, 3)
+    assert AgentId("h") not in pure_uniform_chosen
+
+    # --- Real gossip_round + push-pull round, driven through the mixed sampler ---
+    registries = {aid: ByzantineGossipRegistry(aid, net, idents[str(aid)]) for aid in ids}
+    contexts: dict[AgentId, _RoutingContext] = {}
+    for aid in ids:
+        contexts[aid] = _RoutingContext(
+            agent_id=aid, rng=random.Random(seed), registries=registries, contexts=contexts
+        )
+
+    asyncio.run(
+        registries[AgentId("h")].register(
+            AgentCard(agent_id=AgentId("h"), name="H", capabilities=["sell"])
+        )
+    )
+
+    asyncio.run(registries[AgentId("v")].gossip_round(contexts[AgentId("v")]))  # type: ignore[arg-type]
+
+    snap = registries[AgentId("v")].view_snapshot()
+    assert AgentId("h") in snap  # honest card converged -- v was NOT eclipsed
+    [seen] = asyncio.run(registries[AgentId("v")].lookup(Query()))
+    assert seen.name == "H"
+
+
+def test_eclipse_resistant_sampling_is_deterministic() -> None:
+    """Same seed + same peer set -> byte-identical chosen peer list, every time."""
+    peers = [AgentId("h"), AgentId("m1"), AgentId("m2"), AgentId("m3"), AgentId("m4")]
+
+    first = _sample_eclipse_resistant(random.Random(123), peers, 3)
+    second = _sample_eclipse_resistant(random.Random(123), peers, 3)
+    assert first == second
+
+    # Anchor half (ceil(3/2) == 2, lexicographically-first) never depends on rng.
+    assert first[:2] == sorted(peers)[:2]
+
+    # A different seed may change the random half but never the anchor half.
+    third = _sample_eclipse_resistant(random.Random(999), peers, 3)
+    assert third[:2] == first[:2]
