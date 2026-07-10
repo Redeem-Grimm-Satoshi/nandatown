@@ -277,11 +277,20 @@ def validate_auction_winner_highest(
         # The invariant is about the winner's REAL bid, not the announced
         # amount. Trusting the announced amount lets an auctioneer award a low
         # bidder while announcing a figure inflated past every real bid, and the
-        # check would pass. Use the winner's own highest observed bid; fall back
-        # to the announced amount only when the winner's bid was not observed
-        # (e.g. dropped under message loss), so this never fails a valid trace.
+        # check would pass. A winner with NO observed bid cannot be the highest
+        # bidder either: bid send-events are recorded at send time and survive
+        # message loss (loss emits a separate "dropped" delivery event), so an
+        # absent winner bid means a fabricated/shill award — never fall back to
+        # the announced amount.
         winner_bids = [amount for bidder, amount in item_bids if bidder == winner]
-        effective_winner_bid = max(winner_bids) if winner_bids else winning_amount
+        if not winner_bids:
+            if item_bids:
+                violations.append(
+                    f"item {item}: winner {winner} announced {winning_amount} "
+                    f"but placed no observed bid"
+                )
+            continue
+        effective_winner_bid = max(winner_bids)
         for bidder, amount in item_bids:
             if amount > effective_winner_bid:
                 violations.append(

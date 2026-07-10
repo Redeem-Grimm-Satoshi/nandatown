@@ -260,6 +260,30 @@ class TestAuctionWinnerHighest:
         assert results[0].passed is False
         assert "bidder-1" in results[0].detail
 
+    def test_fail_nonbidder_winner_with_invented_amount(self) -> None:
+        # Adversarial: the auctioneer awards carol, who never placed a bid,
+        # and announces an invented 999 above every real bid. Falling back to
+        # the announced amount certified the shill award; a winner with no
+        # observed bid must be a violation.
+        events = [
+            _send("alice", "auctioneer-0", "bid:item-1:100"),
+            _send("bob", "auctioneer-0", "bid:item-1:90"),
+            _send("auctioneer-0", "carol", "won:item-1:999"),
+        ]
+        results = validate_auction_winner_highest(events)
+        assert results[0].passed is False
+        assert "no observed bid" in results[0].detail
+
+    def test_pass_no_bids_at_all_observed(self) -> None:
+        # A won: announcement with zero observed bids for the item is skipped
+        # rather than flagged: with no bids in the trace there is no ground
+        # truth to contradict the award.
+        events = [
+            _send("auctioneer-0", "carol", "won:item-1:999"),
+        ]
+        results = validate_auction_winner_highest(events)
+        assert results[0].passed is True
+
     def test_pass_no_auctions(self) -> None:
         events = [{"ts": 0.0, "agent": "auctioneer-0", "kind": "start"}]
         results = validate_auction_winner_highest(events)
