@@ -2764,6 +2764,158 @@ def validate_comms_authentic_delivery(
 
 
 # ---------------------------------------------------------------------------
+# Comms replay-attack validator (adversarial)
+# ---------------------------------------------------------------------------
+# Ground truth for "was this id replayed?" is the wire itself: how many times a
+# given envelope id was actually delivered to the receiver, independent of the
+# decoder under test. An id delivered more than once means an attacker (or a
+# faithfully-replaying relay) captured a genuine envelope and re-sent it. A
+# comms layer passes iff it accepts the *first* delivery of every id and
+# rejects every delivery after that. ``versioned`` and ``authenticated`` have
+# no replay memory -- a captured, byte-identical envelope re-verifies every
+# time -- so they accept the duplicate and fail; ``replay_safe`` remembers
+# accepted ids per sender and rejects the repeat.
+
+
+def _collect_comms_wire_sequence(
+    events: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Map each envelope id to *every* delivery it received, in trace order.
+
+    Unlike :func:`_collect_comms_wire` (which keeps only the last delivery per
+    id), this keeps the full sequence so a second delivery of the same id --
+    the replay itself -- is visible rather than overwritten.
+
+    Example::
+
+        deliveries = _collect_comms_wire_sequence(events)
+        assert len(deliveries["m-0-replayed"]) == 2
+    """
+    wire: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for ev in events:
+        if ev.get("kind") != "receive":
+            continue
+        env = _parse_comms_envelope(str(ev.get("msg", "")))
+        if env is None:
+            continue
+        mid = str(env.get("id"))
+        version = str(env.get("schema_version", "1.0"))
+        wire[mid].append({"version": version, "major": _comms_major(version)})
+    return wire
+
+
+def _collect_comms_ack_sequence(events: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """Map each envelope id to the ordered list of ack statuses it received.
+
+    Unlike :func:`_collect_comms_acks` (last ack wins), this preserves every
+    ack in emission order so the first (genuine) delivery's outcome can be
+    checked separately from the replay's.
+
+    Example::
+
+        acks = _collect_comms_ack_sequence(events)
+        assert acks["m-0-replayed"] == ["accepted", "rejected_replay"]
+    """
+    acks: dict[str, list[str]] = defaultdict(list)
+    for ev in events:
+        if ev.get("kind") not in ("send", "broadcast"):
+            continue
+        msg = str(ev.get("msg", ""))
+        if not msg.startswith("ack:"):
+            continue
+        parts = msg.split(":", 3)
+        if len(parts) < 3:
+            continue
+        mid, status = parts[1], parts[2]
+        acks[mid].append(status)
+    return acks
+
+
+def validate_comms_replay_resistance(
+    events: list[dict[str, Any]],
+) -> list[ValidationResult]:
+    """Every delivery of an id after the first must be rejected as a replay.
+
+    Catches the *replay* attack: an on-path attacker (or relay) captures a
+    genuinely-tagged envelope and re-sends it verbatim. Nothing was rewritten,
+    so tamper-evidence alone (``authenticated``) still verifies it; only a
+    plugin that remembers accepted ids (``replay_safe``) can tell the second
+    delivery apart from the first.
+
+    Example::
+
+        results = validate_comms_replay_resistance(events)
+    """
+    wire = _collect_comms_wire_sequence(events)
+    acks = _collect_comms_ack_sequence(events)
+    replayed = {mid: deliveries for mid, deliveries in wire.items() if len(deliveries) > 1}
+    if not replayed:
+        return [
+            ValidationResult("comms_replay_resistance", False, "no replayed envelopes in trace")
+        ]
+    violations: list[str] = []
+    for mid, deliveries in replayed.items():
+        statuses = acks.get(mid, [])
+        if len(statuses) < len(deliveries):
+            violations.append(
+                f"{mid}: {len(deliveries)} deliveries but only {len(statuses)} ack(s)"
+            )
+            continue
+        for i, status in enumerate(statuses[1 : len(deliveries)], start=2):
+            if not status.startswith("rejected"):
+                violations.append(f"{mid}: replay delivery #{i} not rejected (got {status})")
+    if violations:
+        return [ValidationResult("comms_replay_resistance", False, "; ".join(violations))]
+    return [
+        ValidationResult(
+            "comms_replay_resistance",
+            True,
+            f"{len(replayed)} replayed envelope(s) correctly rejected after first delivery",
+        )
+    ]
+
+
+def validate_comms_replay_honest_delivery(
+    events: list[dict[str, Any]],
+) -> list[ValidationResult]:
+    """The first delivery of every id must still be accepted (no false positives).
+
+    The liveness counterpart to :func:`validate_comms_replay_resistance`: a
+    plugin cannot pass the replay check by refusing all traffic. Every id's
+    first delivery -- replayed later or not -- must be accepted.
+
+    Example::
+
+        results = validate_comms_replay_honest_delivery(events)
+    """
+    wire = _collect_comms_wire_sequence(events)
+    acks = _collect_comms_ack_sequence(events)
+    if not wire:
+        return [
+            ValidationResult(
+                "comms_replay_honest_delivery", False, "no delivered envelopes in trace"
+            )
+        ]
+    violations: list[str] = []
+    for mid in wire:
+        statuses = acks.get(mid, [])
+        if not statuses:
+            violations.append(f"{mid}: delivered but no ack")
+            continue
+        if statuses[0] != "accepted":
+            violations.append(f"{mid}: first delivery not accepted (got {statuses[0]})")
+    if violations:
+        return [ValidationResult("comms_replay_honest_delivery", False, "; ".join(violations))]
+    return [
+        ValidationResult(
+            "comms_replay_honest_delivery",
+            True,
+            f"{len(wire)} first-time delivery(ies) correctly accepted",
+        )
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Receipt-reputation (collusion-ring) validators
 # ---------------------------------------------------------------------------
 
@@ -4936,6 +5088,10 @@ VALIDATORS: dict[str, list[Any]] = {
     "comms_downgrade": [
         validate_comms_downgrade_resistance,
         validate_comms_authentic_delivery,
+    ],
+    "comms_replay": [
+        validate_comms_replay_resistance,
+        validate_comms_replay_honest_delivery,
     ],
     "marketplace": [
         validate_marketplace_no_double_sell,

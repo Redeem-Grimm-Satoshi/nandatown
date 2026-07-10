@@ -2004,6 +2004,7 @@ class TestValidatorRegistry:
             "empic_payments",
             "comms_versioning",
             "comms_downgrade",
+            "comms_replay",
             "receipt_reputation",
             "multi_attribute_market",
             "provenance_supply_chain",
