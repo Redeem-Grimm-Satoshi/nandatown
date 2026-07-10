@@ -343,6 +343,56 @@ class TestVotingTally:
         assert results[0].passed is False
         assert "round 1" in results[0].detail
 
+    def test_fail_double_vote_cannot_inflate_tally(self) -> None:
+        # Adversarial: voter-0 votes twice and the colluding coordinator
+        # announces the inflated 2/2. The raw message count matches the
+        # announcement, but the per-voter tally is 1/1 — must FAIL.
+        events = [
+            _send("voter-0", "coordinator-0", "vote:1:yes:voter-0"),
+            _send("voter-0", "coordinator-0", "vote:1:yes:voter-0"),
+            _send("coordinator-0", "proposer-0", "result:1:passed:2/2"),
+        ]
+        results = validate_voting_tally(events)
+        assert results[0].passed is False
+        assert "actual 1/1" in results[0].detail
+
+    def test_pass_double_vote_with_deduplicated_announcement(self) -> None:
+        # An honest coordinator that deduplicates the double vote passes;
+        # the duplicate is still flagged by validate_voting_no_double_vote,
+        # which is where that failure belongs.
+        events = [
+            _send("voter-0", "coordinator-0", "vote:1:yes:voter-0"),
+            _send("voter-0", "coordinator-0", "vote:1:yes:voter-0"),
+            _send("voter-1", "coordinator-0", "vote:1:no:voter-1"),
+            _send("coordinator-0", "proposer-0", "result:1:passed:1/2"),
+        ]
+        results = validate_voting_tally(events)
+        assert results[0].passed is True
+
+    def test_first_vote_wins_for_flip_flopping_voter(self) -> None:
+        # A voter that changes its vote mid-round counts once, as its first
+        # ballot — deterministic and consistent with at-most-once voting.
+        events = [
+            _send("voter-0", "coordinator-0", "vote:1:yes:voter-0"),
+            _send("voter-0", "coordinator-0", "vote:1:no:voter-0"),
+            _send("voter-1", "coordinator-0", "vote:1:no:voter-1"),
+            _send("coordinator-0", "proposer-0", "result:1:failed:1/2"),
+        ]
+        results = validate_voting_tally(events)
+        assert results[0].passed is True
+
+    def test_three_part_votes_fall_back_to_sending_agent(self) -> None:
+        # Without an explicit voter field, identity falls back to the
+        # sending agent — the same rule validate_voting_no_double_vote uses.
+        events = [
+            _send("voter-0", "coordinator-0", "vote:1:yes"),
+            _send("voter-0", "coordinator-0", "vote:1:yes"),
+            _send("voter-1", "coordinator-0", "vote:1:no"),
+            _send("coordinator-0", "proposer-0", "result:1:passed:1/2"),
+        ]
+        results = validate_voting_tally(events)
+        assert results[0].passed is True
+
 
 class TestVotingAllCounted:
     def test_pass_all_counted(self) -> None:

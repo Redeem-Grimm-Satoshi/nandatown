@@ -384,9 +384,22 @@ def validate_auction_all_notified(
 def validate_voting_tally(
     events: list[dict[str, Any]],
 ) -> list[ValidationResult]:
-    """The announced result matches the actual vote count."""
-    # round -> list of votes
-    votes: dict[str, list[str]] = defaultdict(list)
+    """The announced result matches the actual vote count.
+
+    Votes are tallied per unique voter (first vote wins), using the same
+    voter-identity rule as ``validate_voting_no_double_vote``: the explicit
+    voter field when present (``vote:<round>:<vote>:<voter>``), otherwise the
+    sending agent. A duplicate vote therefore cannot inflate a tally into one
+    this validator certifies — previously a voter voting twice plus a
+    coordinator announcing the inflated count passed as "correct".
+
+    Example::
+
+        vote:1:yes:voter-0 (sent twice) + result:1:passed:2/2 -> FAIL;
+        the deduplicated tally is 1/1.
+    """
+    # round -> voter -> first vote cast
+    votes: dict[str, dict[str, str]] = defaultdict(dict)
     # round -> (result_str, yes_count, total)
     results: dict[str, tuple[str, int, int]] = {}
 
@@ -396,10 +409,17 @@ def validate_voting_tally(
         msg = _message_body(ev)
         if msg.startswith("vote:"):
             parts = msg.split(":")
-            if len(parts) >= 3:
+            if len(parts) >= 4:
                 rnd = parts[1]
                 vote = parts[2]
-                votes[rnd].append(vote)
+                voter = parts[3]
+            elif len(parts) >= 3:
+                rnd = parts[1]
+                vote = parts[2]
+                voter = ev.get("agent", "")
+            else:
+                continue
+            votes[rnd].setdefault(voter, vote)
         elif msg.startswith("result:"):
             parts = msg.split(":")
             if len(parts) >= 4:
@@ -416,9 +436,9 @@ def validate_voting_tally(
 
     mismatches: list[str] = []
     for rnd, (_result_str, reported_yes, reported_total) in results.items():
-        actual_votes = votes.get(rnd, [])
-        actual_yes = sum(1 for v in actual_votes if v == "yes")
-        actual_total = len(actual_votes)
+        per_voter = votes.get(rnd, {})
+        actual_yes = sum(1 for v in per_voter.values() if v == "yes")
+        actual_total = len(per_voter)
         if actual_yes != reported_yes or actual_total != reported_total:
             mismatches.append(
                 f"round {rnd}: reported {reported_yes}/{reported_total} "
