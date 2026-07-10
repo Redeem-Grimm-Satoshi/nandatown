@@ -2010,6 +2010,7 @@ class TestValidatorRegistry:
             "bft_hotstuff",
             "escrow_marketplace",
             "failure_detection",
+            "failure_detection_forgery",
             "parc_migration",
             "rogue_trusted_agent",
             "sybil_bond",
