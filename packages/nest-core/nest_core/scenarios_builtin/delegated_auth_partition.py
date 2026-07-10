@@ -208,12 +208,24 @@ class CoordinatorAgent(_GossipMixin):
         self._grants: dict[AgentId, Token] = {}
 
     async def on_start(self, ctx: AgentContext) -> None:
+        """Schedule the bootstrap grant, the revocation, and gossip rounds.
+
+        Example::
+
+            await agent.on_start(ctx)
+        """
         await ctx.schedule(1.0, _json({"type": "bootstrap"}))
         await ctx.schedule(float(self._revoke_tick), _json({"type": "revoke"}))
         for when, payload in self._schedule_gossip():
             await ctx.schedule(when, payload)
 
     async def on_message(self, ctx: AgentContext, sender: AgentId, payload: bytes) -> None:
+        """Handle gossip, the bootstrap/revoke ticks, and access requests.
+
+        Example::
+
+            await agent.on_message(ctx, sender, b'{"type": "access_request"}')
+        """
         data = _load(payload)
         _pin_clock(self._auth, ctx.time)
         if await self._handle_gossip(ctx, sender, data):
@@ -302,10 +314,22 @@ class GatewayAgent(_GossipMixin):
         self._auth = auth
 
     async def on_start(self, ctx: AgentContext) -> None:
+        """Schedule this replica's gossip rounds.
+
+        Example::
+
+            await agent.on_start(ctx)
+        """
         for when, payload in self._schedule_gossip():
             await ctx.schedule(when, payload)
 
     async def on_message(self, ctx: AgentContext, sender: AgentId, payload: bytes) -> None:
+        """Merge incoming gossip, or gate an access request against this replica.
+
+        Example::
+
+            await agent.on_message(ctx, sender, b'{"type": "access_request"}')
+        """
         data = _load(payload)
         _pin_clock(self._auth, ctx.time)
         if await self._handle_gossip(ctx, sender, data):
@@ -353,10 +377,22 @@ class IntermediaryAgent(_GossipMixin):
         self._leaves = leaves
 
     async def on_start(self, ctx: AgentContext) -> None:
+        """Schedule this replica's gossip rounds.
+
+        Example::
+
+            await agent.on_start(ctx)
+        """
         for when, payload in self._schedule_gossip():
             await ctx.schedule(when, payload)
 
     async def on_message(self, ctx: AgentContext, sender: AgentId, payload: bytes) -> None:
+        """Merge incoming gossip, or attenuate a received grant for each leaf.
+
+        Example::
+
+            await agent.on_message(ctx, coordinator, b'{"type": "grant", ...}')
+        """
         data = _load(payload)
         _pin_clock(self._auth, ctx.time)
         if await self._handle_gossip(ctx, sender, data):
@@ -413,6 +449,12 @@ class LeafAgent(StateMachineAgent):
         self._lineage: list[str] = []
 
     async def on_message(self, ctx: AgentContext, sender: AgentId, payload: bytes) -> None:
+        """Store a received grant, then present it to every verifier on cadence.
+
+        Example::
+
+            await agent.on_message(ctx, intermediary, b'{"type": "grant", ...}')
+        """
         data = _load(payload)
         kind = data.get("type")
         if kind == "grant":
