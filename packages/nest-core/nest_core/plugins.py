@@ -21,6 +21,7 @@ _BUILTINS: dict[tuple[str, str], str] = {
     ("comms", "nest_native"): f"{_REF}.comms.nest_native:NestNativeComms",
     ("comms", "versioned"): f"{_REF}.comms.versioned:VersionedComms",
     ("comms", "authenticated"): f"{_REF}.comms.authenticated:AuthenticatedComms",
+    ("comms", "replay_safe"): f"{_REF}.comms.replay_safe:ReplaySafeComms",
     ("identity", "did_key"): f"{_REF}.identity.did_key:DidKeyIdentity",
     ("identity", "ed25519_rotating"): (f"{_REF}.identity.ed25519_rotating:Ed25519RotatingIdentity"),
     ("registry", "in_memory"): f"{_REF}.registry.in_memory:InMemoryRegistry",

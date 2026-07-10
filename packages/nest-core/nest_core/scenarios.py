@@ -117,6 +117,10 @@ def _try_load_builtin(name: str) -> None:
         from nest_core.scenarios_builtin.comms_downgrade import comms_downgrade_factory
 
         register_scenario("comms_downgrade", comms_downgrade_factory)
+    elif name == "comms_replay":
+        from nest_core.scenarios_builtin.comms_replay import comms_replay_factory
+
+        register_scenario("comms_replay", comms_replay_factory)
     elif name == "receipt_reputation":
         from nest_core.scenarios_builtin.receipt_reputation import (
             receipt_reputation_factory,

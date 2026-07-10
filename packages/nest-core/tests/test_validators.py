@@ -2060,6 +2060,7 @@ class TestValidatorRegistry:
             "empic_payments",
             "comms_versioning",
             "comms_downgrade",
+            "comms_replay",
             "receipt_reputation",
             "receipt_reputation_majority",
             "multi_attribute_market",
