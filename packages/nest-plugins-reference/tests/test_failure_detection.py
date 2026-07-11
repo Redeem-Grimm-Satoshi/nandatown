@@ -34,12 +34,7 @@ from nest_core.layers.failure_detector import FailureDetector
 from nest_core.plugins import PluginRegistry
 from nest_core.runner import ScenarioRunner
 from nest_core.scenario import ScenarioConfig
-from nest_core.scenarios_builtin.failure_detection import (
-    IDENTITY_SEED,
-    claimed_peer,
-    heartbeat_payload,
-    verify_heartbeat,
-)
+from nest_core.scenarios_builtin.failure_detection import IDENTITY_SEED
 from nest_core.types import AgentId
 from nest_core.validators import (
     ValidationResult,
@@ -47,6 +42,13 @@ from nest_core.validators import (
     validate_trace,
 )
 from nest_plugins_reference.failure_detection.heartbeat import HeartbeatFailureDetector
+from nest_plugins_reference.failure_detection.heartbeat_auth import (
+    SignedHeartbeatAuthenticator,
+    TrustingHeartbeatAuthenticator,
+    claimed_peer,
+    heartbeat_payload,
+    make_heartbeat_authenticator,
+)
 from nest_plugins_reference.failure_detection.phi_accrual import PhiAccrualFailureDetector
 from nest_plugins_reference.identity.did_key import DidKeyIdentity
 
@@ -284,51 +286,56 @@ def _fd_identities() -> dict[AgentId, Any]:
     return ids
 
 
-def test_signed_heartbeat_authentic_is_accepted() -> None:
+def test_signed_authenticator_accepts_authentic_beat() -> None:
     """A heartbeat signed by the claimed peer verifies and returns (peer, ts)."""
     ids = _fd_identities()
+    auth = SignedHeartbeatAuthenticator(ids[_OBSERVER])
     payload = heartbeat_payload(ids[_VICTIM], _VICTIM, now=10.0)
-    assert verify_heartbeat(ids[_OBSERVER], payload, last_ts={}, now=10.0) == (_VICTIM, 10.0)
+    assert auth.accept(payload, now=10.0) == (_VICTIM, 10.0)
 
 
-def test_fabricated_heartbeat_signed_with_wrong_key_is_rejected() -> None:
+def test_signed_authenticator_rejects_fabrication_with_wrong_key() -> None:
     """A heartbeat that claims the victim but is signed by the forger fails verification."""
     ids = _fd_identities()
+    auth = SignedHeartbeatAuthenticator(ids[_OBSERVER])
     forged = heartbeat_payload(ids[_FORGER], _VICTIM, now=10.0)  # claims victim, forger's key
     assert claimed_peer(forged) == _VICTIM  # the trusting parse is fooled...
-    assert (
-        verify_heartbeat(ids[_OBSERVER], forged, last_ts={}, now=10.0) is None
-    )  # ...verify is not
+    assert auth.accept(forged, now=10.0) is None  # ...the signed authenticator is not
 
 
-def test_replayed_heartbeat_is_rejected_by_freshness() -> None:
-    """A byte-exact replay of an accepted heartbeat is stale and rejected."""
+def test_signed_authenticator_rejects_replay_by_freshness() -> None:
+    """A byte-exact replay of an accepted heartbeat is stale and rejected.
+
+    The authenticator owns its per-peer last-accepted timestamp, so a second
+    accept of the same beat is rejected without any external bookkeeping.
+    """
     ids = _fd_identities()
+    auth = SignedHeartbeatAuthenticator(ids[_OBSERVER])
     payload = heartbeat_payload(ids[_VICTIM], _VICTIM, now=10.0)
-    last: dict[AgentId, float] = {}
-    assert verify_heartbeat(ids[_OBSERVER], payload, last, now=10.0) == (_VICTIM, 10.0)
-    last[_VICTIM] = 10.0
-    assert verify_heartbeat(ids[_OBSERVER], payload, last, now=25.0) is None
+    assert auth.accept(payload, now=10.0) == (_VICTIM, 10.0)
+    assert auth.accept(payload, now=25.0) is None
 
 
-def test_future_dated_heartbeat_is_rejected() -> None:
+def test_signed_authenticator_rejects_future_dated_beat() -> None:
     """A heartbeat whose signed timestamp is ahead of now is rejected."""
     ids = _fd_identities()
+    auth = SignedHeartbeatAuthenticator(ids[_OBSERVER])
     payload = heartbeat_payload(ids[_VICTIM], _VICTIM, now=50.0)
-    assert verify_heartbeat(ids[_OBSERVER], payload, last_ts={}, now=10.0) is None
+    assert auth.accept(payload, now=10.0) is None
 
 
-def test_malformed_or_unsigned_heartbeat_is_rejected() -> None:
+def test_signed_authenticator_rejects_malformed_or_unsigned() -> None:
     """Unsigned, truncated, and non-heartbeat payloads all fail verification."""
     ids = _fd_identities()
-    assert verify_heartbeat(ids[_OBSERVER], b"FDHB|target-0|10.0", last_ts={}, now=10.0) is None
-    assert verify_heartbeat(ids[_OBSERVER], b"FDHB|target-0|bad|zz", last_ts={}, now=10.0) is None
-    assert verify_heartbeat(ids[_OBSERVER], b"not-a-heartbeat", last_ts={}, now=10.0) is None
+    auth = SignedHeartbeatAuthenticator(ids[_OBSERVER])
+    assert auth.accept(b"FDHB|target-0|10.0", now=10.0) is None
+    assert auth.accept(b"FDHB|target-0|bad|zz", now=10.0) is None
+    assert auth.accept(b"not-a-heartbeat", now=10.0) is None
     assert claimed_peer(b"FDHB|target-0|10.0|ab") == _VICTIM
     assert claimed_peer(b"nope") is None
 
 
-def test_non_finite_timestamp_heartbeat_is_rejected() -> None:
+def test_signed_authenticator_rejects_non_finite_timestamp() -> None:
     """A validly-signed but non-finite (nan/inf) timestamp is rejected.
 
     ``nan`` would otherwise slip both IEEE-754 freshness comparisons.  The
@@ -336,11 +343,40 @@ def test_non_finite_timestamp_heartbeat_is_rejected() -> None:
     finiteness guard rejects it.
     """
     ids = _fd_identities()
+    auth = SignedHeartbeatAuthenticator(ids[_OBSERVER])
     for ts_text in ("nan", "inf", "-inf"):
         base = f"FDHB|{_VICTIM}|{ts_text}".encode()
         sig = ids[_VICTIM].sign(base)
         payload = base + b"|" + sig.value.hex().encode()
-        assert verify_heartbeat(ids[_OBSERVER], payload, last_ts={}, now=10_000.0) is None
+        assert auth.accept(payload, now=10_000.0) is None
+
+
+def test_trusting_authenticator_believes_claimed_id() -> None:
+    """The trusting authenticator accepts any heartbeat-shaped payload by claimed id.
+
+    It is the naive foil: a forger's fabrication claiming the victim is accepted
+    just like a genuine beat, which is exactly the spoofing the signed
+    authenticator closes.
+    """
+    ids = _fd_identities()
+    auth = TrustingHeartbeatAuthenticator()
+    forged = heartbeat_payload(ids[_FORGER], _VICTIM, now=10.0)  # forger's key, claims victim
+    assert auth.accept(forged, now=12.0) == (_VICTIM, 12.0)
+    assert auth.accept(b"not-a-heartbeat", now=12.0) is None
+    assert auth.verifies is False
+
+
+def test_make_heartbeat_authenticator_selects_and_validates() -> None:
+    """The selector returns the named component and rejects unknown names."""
+    ids = _fd_identities()
+    assert isinstance(
+        make_heartbeat_authenticator("signed", ids[_OBSERVER]), SignedHeartbeatAuthenticator
+    )
+    assert isinstance(
+        make_heartbeat_authenticator("trusting", ids[_OBSERVER]), TrustingHeartbeatAuthenticator
+    )
+    with pytest.raises(ValueError, match="unknown heartbeat authenticator"):
+        make_heartbeat_authenticator("bogus", ids[_OBSERVER])
 
 
 def _accuracy_probe_events(hb_max: float, gap: float) -> list[dict[str, Any]]:
@@ -518,3 +554,64 @@ def test_forgery_scenario_is_byte_for_byte_deterministic() -> None:
     if not FORGERY_PATH.exists():
         pytest.skip(f"scenario not found at {FORGERY_PATH}")
     assert _run_forgery_bytes(42) == _run_forgery_bytes(42)
+
+
+def _run_forgery_overrides(
+    seed: int, overrides: dict[str, Any]
+) -> tuple[bytes, dict[str, ValidationResult]]:
+    """Run the forgery scenario with task.config overrides; return (bytes, results)."""
+    config = ScenarioConfig.from_yaml(str(FORGERY_PATH))
+    task_cfg = dict(config.task.config)
+    task_cfg.update(overrides)
+    config = config.model_copy(
+        update={"seed": seed, "task": config.task.model_copy(update={"config": task_cfg})}
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        trace_path = Path(tmp) / f"fdf_{seed}.jsonl"
+        config = config.model_copy(
+            update={"output": config.output.model_copy(update={"trace": str(trace_path)})}
+        )
+        asyncio.run(ScenarioRunner(config, registry=PluginRegistry()).run())
+        results = {r.name: r for r in validate_trace(trace_path, "failure_detection_forgery")}
+        return trace_path.read_bytes(), results
+
+
+@pytest.mark.parametrize("seed", _SEEDS)
+def test_forgery_hb_auth_component_swap(seed: int) -> None:
+    """Swapping the authenticator component, not a flag, drives the discriminator.
+
+    ``hb_auth: trusting`` is fooled by the forged beats; ``hb_auth: signed``
+    rejects them.  Verification is thus a swapped component, matching how the
+    detector itself swaps ``phi_accrual`` for ``heartbeat``.
+    """
+    if not FORGERY_PATH.exists():
+        pytest.skip(f"scenario not found at {FORGERY_PATH}")
+
+    _, trusting = _run_forgery_overrides(seed, {"hb_auth": "trusting"})
+    assert not trusting["failure_detection_no_forged_liveness"].passed, trusting[
+        "failure_detection_no_forged_liveness"
+    ].detail
+
+    _, signed = _run_forgery_overrides(seed, {"hb_auth": "signed"})
+    assert signed["failure_detection_no_forged_liveness"].passed, signed[
+        "failure_detection_no_forged_liveness"
+    ].detail
+
+
+def test_hb_auth_selector_and_verify_heartbeats_alias_are_identical() -> None:
+    """The ``hb_auth`` selector and the legacy ``verify_heartbeats`` bool agree byte for byte.
+
+    ``hb_auth: signed`` must reproduce ``verify_heartbeats: true`` exactly, and
+    ``hb_auth: trusting`` must reproduce ``verify_heartbeats: false`` exactly, so
+    the alias keeps existing scenario configs working unchanged.
+    """
+    if not FORGERY_PATH.exists():
+        pytest.skip(f"scenario not found at {FORGERY_PATH}")
+
+    signed_bytes, _ = _run_forgery_overrides(42, {"hb_auth": "signed"})
+    alias_true_bytes, _ = _run_forgery_overrides(42, {"verify_heartbeats": True})
+    assert signed_bytes == alias_true_bytes
+
+    trusting_bytes, _ = _run_forgery_overrides(42, {"hb_auth": "trusting"})
+    alias_false_bytes, _ = _run_forgery_overrides(42, {"verify_heartbeats": False})
+    assert trusting_bytes == alias_false_bytes

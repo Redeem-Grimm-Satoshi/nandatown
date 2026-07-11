@@ -23,12 +23,15 @@ The accuracy validator in :mod:`nest_core.validators` is tuned to separate the
 two: the baseline fails it, phi-accrual passes.
 
 **Authenticated heartbeats.**  Every heartbeat is signed with the emitter's
-identity plugin and carries its emission timestamp:
-``FDHB|<id>|<ts>|<sig-hex>``.  The observer verifies the signature against the
-claimed peer's registered public key and requires the signed timestamp to be
-strictly newer than the last accepted one from that peer (and not from the
-future), so both fabricated and replayed heartbeats are rejected.  Verification
-lives in the observing agent, not in the detector: the
+identity plugin and carries its emission timestamp: ``FDHB|<id>|<ts>|<sig-hex>``.
+The wire format and the verifiers live in the reusable
+:mod:`nest_plugins_reference.failure_detection.heartbeat_auth` component, so any
+scenario can authenticate heartbeats the same way.  The observer holds a
+:class:`~nest_plugins_reference.failure_detection.heartbeat_auth.HeartbeatAuthenticator`;
+the signed one accepts a beat only if its signature verifies against the claimed
+peer's registered key and its timestamp is fresh (strictly newer than the last
+accepted, and not from the future), so both fabricated and replayed heartbeats
+are rejected.  Authentication lives in that component, not in the detector: the
 :class:`~nest_core.layers.failure_detector.FailureDetector` contract stays a
 pure liveness oracle over *accepted* observations.
 
@@ -37,12 +40,15 @@ The forgery scenario (``scenarios/failure_detection_forgery.yaml``, task type
 keep-alive attack: while the victim is genuinely down, the forger keeps
 broadcasting heartbeats that *claim* to be the victim — both fabricated
 payloads signed with the forger's own key and byte-exact replays of captured
-genuine beats.  With ``verify_heartbeats: true`` (the default) the observer
-rejects every forgery and the outage is detected; with the trusting mode
-(``verify_heartbeats: false``, the foil) the forged liveness masks the crash
-and the ``failure_detection_no_forged_liveness`` validator fails.  This is the
-same discriminator pattern the base scenario uses against the fixed-timeout
-baseline, applied to an attack class instead of an implementation mistake.
+genuine beats.  The discriminator is a **component swap**: with ``hb_auth:
+signed`` (the default) the observer rejects every forgery and the outage is
+detected; with ``hb_auth: trusting`` (the foil, the naive believe-the-claimed-id
+baseline) the forged liveness masks the crash and the
+``failure_detection_no_forged_liveness`` validator fails.  This mirrors how the
+base scenario swaps ``phi_accrual`` for the fixed-timeout ``heartbeat`` detector,
+applied to an attack class instead of an implementation mistake.  The older
+boolean ``verify_heartbeats: true|false`` still works as an alias for ``hb_auth:
+signed|trusting``.
 
 Ground truth is not inferred — the emitters broadcast ``fd:phase`` marker events
 at start and on every reachability transition, and the observer broadcasts one
@@ -65,13 +71,19 @@ Example::
 from __future__ import annotations
 
 import json
-import math
 from typing import Any, cast
+
+from nest_plugins_reference.failure_detection.heartbeat_auth import (
+    HeartbeatAuthenticator,
+    claimed_peer,
+    heartbeat_payload,
+    make_heartbeat_authenticator,
+)
 
 from nest_core.layers.failure_detector import FailureDetector
 from nest_core.scenario import ScenarioConfig
 from nest_core.sim.agent import AgentContext, StateMachineAgent
-from nest_core.types import AgentId, Signature
+from nest_core.types import AgentId
 
 HB_TICK = b"FD_HB_TICK"
 """Payload tag for an emitter's periodic self-message that triggers a heartbeat."""
@@ -81,16 +93,6 @@ EVAL_TICK = b"FD_EVAL_TICK"
 
 FORGE_TICK = b"FD_FORGE_TICK"
 """Payload tag for the forger's periodic self-message that triggers an attack round."""
-
-_HB_PREFIX = "FDHB|"
-"""Marker prefix identifying a heartbeat broadcast."""
-
-_HB_ALGORITHM = "sim-rsa-sha256"
-"""Algorithm tag stamped on reconstructed heartbeat signatures.
-
-The reference identity plugins verify by key material and ignore this field;
-it is carried for trace forensics only.
-"""
 
 IDENTITY_SEED = b"fd-heartbeat-v1"
 """Deterministic key-derivation seed shared by every agent's identity instance."""
@@ -118,101 +120,6 @@ DEFAULT_VERIFY_HEARTBEATS = True
 
 DEFAULT_FORGERY_VICTIM = "target-0"
 """Default peer the forger impersonates in the forgery scenario."""
-
-
-def heartbeat_payload(identity: Any, agent_id: AgentId, now: float) -> bytes:
-    """Return a signed heartbeat payload ``FDHB|<id>|<ts>|<sig-hex>``.
-
-    The signature covers ``FDHB|<id>|<ts>`` exactly as serialized, so a
-    verifier can rebuild the signed bytes from the wire text without float
-    round-tripping.  When *identity* is ``None`` the unsigned prefix form is
-    emitted (usable only by a trusting observer).
-
-    Example::
-
-        payload = heartbeat_payload(identity, AgentId("peer-0"), 12.5)
-    """
-    base = f"{_HB_PREFIX}{agent_id}|{round(now, 6)}"
-    if identity is None:
-        return base.encode()
-    sig = identity.sign(base.encode())
-    return f"{base}|{sig.value.hex()}".encode()
-
-
-def claimed_peer(payload: bytes) -> AgentId | None:
-    """Return the peer id a heartbeat payload *claims*, with no authentication.
-
-    This is the trusting parse: it believes whatever id the payload names,
-    which is exactly the spoofable behavior the forgery scenario attacks.
-
-    Example::
-
-        peer = claimed_peer(b"FDHB|peer-0|12.5|abcd")
-    """
-    text = payload.decode("utf-8", "replace")
-    if not text.startswith(_HB_PREFIX):
-        return None
-    claimed = text[len(_HB_PREFIX) :].split("|", 1)[0]
-    if not claimed:
-        return None
-    return AgentId(claimed)
-
-
-def verify_heartbeat(
-    identity: Any,
-    payload: bytes,
-    last_ts: dict[AgentId, float],
-    now: float,
-) -> tuple[AgentId, float] | None:
-    """Return ``(peer, ts)`` if *payload* is an authentic, fresh heartbeat.
-
-    Rejects the payload unless every check passes:
-
-    * well-formed ``FDHB|<id>|<ts>|<sig-hex>`` wire format;
-    * the signed timestamp is not from the future and is strictly newer than
-      the last accepted heartbeat from that peer (defeats replay);
-    * the signature verifies against the *claimed* peer's registered public
-      key (defeats fabrication — a forger signing with its own key fails).
-
-    Verification does not consult transport metadata, so it holds even on a
-    transport whose sender field cannot be trusted.
-
-    Example::
-
-        accepted = verify_heartbeat(identity, payload, last_ts={}, now=12.5)
-    """
-    text = payload.decode("utf-8", "replace")
-    if not text.startswith(_HB_PREFIX):
-        return None
-    fields = text[len(_HB_PREFIX) :].split("|")
-    if len(fields) != 3:
-        return None
-    claimed, ts_text, sig_hex = fields
-    if not claimed:
-        return None
-    try:
-        ts = float(ts_text)
-        sig_bytes = bytes.fromhex(sig_hex)
-    except ValueError:
-        return None
-    # A non-finite timestamp (nan/inf) would slip the IEEE-754 comparisons
-    # below, so reject it outright.  Genuine beats always carry ``round(now, 6)``.
-    if not math.isfinite(ts):
-        return None
-    peer = AgentId(claimed)
-    # The signed ts is quantized to 6 dp, so it can round a hair above the
-    # observer's exact ``now`` on the same zero-latency tick; compare against
-    # the same quantum rather than raw ``now`` so genuine beats are not read as
-    # future-dated.  Replays are still caught by the strict freshness check.
-    if ts > round(now, 6) or ts <= last_ts.get(peer, float("-inf")):
-        return None
-    if identity is None:
-        return None
-    base = f"{_HB_PREFIX}{claimed}|{ts_text}"
-    sig = Signature(signer=peer, value=sig_bytes, algorithm=_HB_ALGORITHM)
-    if not identity.verify(base.encode(), sig, peer):
-        return None
-    return peer, ts
 
 
 def _phase_payload(peer: AgentId, reachable: bool, now: float) -> bytes:
@@ -425,14 +332,15 @@ class ByzantineForgerAgent(StateMachineAgent):
 class FailureMonitorAgent(StateMachineAgent):
     """Drive one failure detector and periodically publish suspicion verdicts.
 
-    The detector is injected as the per-agent ``failure_detector`` plugin and
-    the observer's identity (with every peer's public key registered) as the
-    ``identity`` plugin.  In the default verifying mode, a heartbeat is fed to
-    the detector only after its signature and freshness pass
-    :func:`verify_heartbeat`; in the trusting mode (``verify=False``, the forgery
-    scenario's foil) the claimed peer id is believed outright.  On each
-    evaluation self-tick the agent reports, for every watched peer, a
-    ``fd:status`` broadcast carrying the boolean verdict plus the current
+    The detector is injected as the per-agent ``failure_detector`` plugin.  Each
+    received heartbeat is handed to the injected
+    :class:`~nest_plugins_reference.failure_detection.heartbeat_auth.HeartbeatAuthenticator`,
+    which either accepts it as a genuine ``(peer, ts)`` observation or rejects
+    it; only accepted beats reach the detector.  Swapping a
+    ``SignedHeartbeatAuthenticator`` for a ``TrustingHeartbeatAuthenticator`` is
+    what turns authentication on or off, so the agent itself has no verify/trust
+    branch.  On each evaluation self-tick the agent reports, for every watched
+    peer, a ``fd:status`` broadcast carrying the boolean verdict plus the current
     ``phi`` and elapsed silence (the latter two are informational — the
     validators key off the verdict and the broadcast's own timestamp).
 
@@ -440,21 +348,21 @@ class FailureMonitorAgent(StateMachineAgent):
 
         agent = FailureMonitorAgent(
             watched=[AgentId("target-0"), AgentId("peer-0")], eval_interval=3.0,
+            authenticator=SignedHeartbeatAuthenticator(identity),
         )
     """
 
     def __init__(
         self,
         watched: list[AgentId],
+        authenticator: HeartbeatAuthenticator,
         eval_interval: float = DEFAULT_EVAL_INTERVAL,
         hb_max: float = DEFAULT_HB_MAX,
-        verify: bool = DEFAULT_VERIFY_HEARTBEATS,
     ) -> None:
         self._watched = watched
+        self._authenticator = authenticator
         self._eval_interval = eval_interval
         self._hb_max = hb_max
-        self._verify = verify
-        self._last_hb_ts: dict[AgentId, float] = {}
 
     async def on_start(self, ctx: AgentContext) -> None:
         """Broadcast the ``fd:config`` marker and arm the first evaluation tick.
@@ -463,7 +371,7 @@ class FailureMonitorAgent(StateMachineAgent):
 
             await agent.on_start(ctx)
         """
-        await ctx.broadcast(_config_payload(self._hb_max, self._verify, ctx.time))
+        await ctx.broadcast(_config_payload(self._hb_max, self._authenticator.verifies, ctx.time))
         await ctx.schedule(self._eval_interval, EVAL_TICK)
 
     async def on_message(self, ctx: AgentContext, sender: AgentId, payload: bytes) -> None:
@@ -494,21 +402,13 @@ class FailureMonitorAgent(StateMachineAgent):
                 await ctx.broadcast(body)
             await ctx.schedule(self._eval_interval, EVAL_TICK)
             return
-        if self._verify:
-            accepted = verify_heartbeat(
-                ctx.plugins.get("identity"), payload, self._last_hb_ts, ctx.time
-            )
-            if accepted is None:
-                return
-            hb_peer, hb_ts = accepted
-            if hb_peer == ctx.agent_id:
-                return
-            self._last_hb_ts[hb_peer] = hb_ts
-            await fd.heartbeat(hb_peer, now=ctx.time)
+        accepted = self._authenticator.accept(payload, now=ctx.time)
+        if accepted is None:
             return
-        hb_peer = claimed_peer(payload)
-        if hb_peer is not None and hb_peer != ctx.agent_id:
-            await fd.heartbeat(hb_peer, now=ctx.time)
+        hb_peer, _hb_ts = accepted
+        if hb_peer == ctx.agent_id:
+            return
+        await fd.heartbeat(hb_peer, now=ctx.time)
 
 
 def failure_detection_factory(
@@ -522,10 +422,11 @@ def failure_detection_factory(
     :class:`HeartbeatEmitterAgent`, a ``forger`` role becomes a
     :class:`ByzantineForgerAgent` impersonating ``forgery_victim``, and any
     other emitter role (e.g. ``peer``) becomes a never-silent emitter.  The
-    detector kind, its parameters, and the ``verify_heartbeats`` mode come from
-    ``task.config`` so the same scenario can be re-run with the baseline or the
-    accrual detector, and with or without heartbeat authentication.  The same
-    factory serves both the ``failure_detection`` and
+    detector kind, its parameters, and the ``hb_auth`` authenticator (``signed``
+    or ``trusting``, with the boolean ``verify_heartbeats`` accepted as an alias)
+    come from ``task.config`` so the same scenario can be re-run with the baseline
+    or the accrual detector, and with or without heartbeat authentication.  The
+    same factory serves both the ``failure_detection`` and
     ``failure_detection_forgery`` task types; the difference is purely which
     roles the YAML declares.
 
@@ -552,7 +453,14 @@ def failure_detection_factory(
     silent_from = float(task_cfg.get("silent_from", DEFAULT_SILENT_FROM))
     silent_until = float(task_cfg.get("silent_until", DEFAULT_SILENT_UNTIL))
     fd_plugin = str(task_cfg.get("fd_plugin", DEFAULT_FD_PLUGIN))
+    # ``hb_auth`` selects the heartbeat authenticator as a swappable component
+    # ("signed" | "trusting").  The older boolean ``verify_heartbeats`` is kept
+    # as an alias: when ``hb_auth`` is unset it maps True -> "signed",
+    # False -> "trusting", so existing scenario configs keep working unchanged.
     verify_heartbeats = bool(task_cfg.get("verify_heartbeats", DEFAULT_VERIFY_HEARTBEATS))
+    hb_auth = str(task_cfg.get("hb_auth", "")).strip().lower()
+    if not hb_auth:
+        hb_auth = "signed" if verify_heartbeats else "trusting"
     forgery_victim = AgentId(str(task_cfg.get("forgery_victim", DEFAULT_FORGERY_VICTIM)))
     raw_fd_params = task_cfg.get("fd_params", {})
     fd_params: dict[str, Any] = (
@@ -612,9 +520,9 @@ def failure_detection_factory(
     for oid in observer_ids:
         agents[oid] = FailureMonitorAgent(
             watched=list(emitter_ids),
+            authenticator=make_heartbeat_authenticator(hb_auth, identities[oid]),
             eval_interval=eval_interval,
             hb_max=hb_max,
-            verify=verify_heartbeats,
         )
     for eid in emitter_ids:
         sfrom, suntil = emitter_silence[eid]
